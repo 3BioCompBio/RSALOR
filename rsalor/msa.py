@@ -193,14 +193,14 @@ class MSA:
         if n_keep < 1:
             raise ValueError(f"{self.LOR_ERROR} in {self}: target sequence does not contain any standard amino acid residues.")
         if do_trimming:
-            print(f"{self.LOG_WARNING} in {self}: target sequence contains some gaps or non-standard amino acids: MSA will be trimmed: {len(target_sequence)} -> {n_keep} (n_trimmed={n_remove}).")
+            print(f"{self.LOG_WARNING} in {self}: target sequence contains some gaps or non-standard amino acids: MSA will be trimmed: {len(target_sequence)} -> {n_keep} (num trimmed positions: {n_remove}).")
         if n_gaps > 0:
-            print(f" -> {self.LOG_WARNING} in {self}: target sequence contains {n_gaps} gaps -> those positions will be trimmed.")
+            print(f"{self.LOG_WARNING} in {self}: target sequence contains {n_gaps} gaps -> those positions will be trimmed.")
         if len(non_standard) > 0:
             non_std_str = "".join(non_standard)
             if len(non_std_str) > 10:
                 non_std_str = non_std_str[0:7] + "..."
-            print(f" -> {self.LOG_WARNING} in {self}: target sequence contains {len(non_standard)} non-standard amino acids ('{non_std_str}') -> those positions will be trimmed.")
+            print(f"{self.LOG_WARNING} in {self}: target sequence contains {len(non_standard)} non-standard amino acids ('{non_std_str}') -> those positions will be trimmed.")
 
         # Read sequences from file
         self.sequences: List[Sequence] = []
@@ -302,7 +302,8 @@ class MSA:
         # Read from cached file case
         if self.weights_cache_path is not None and os.path.isfile(self.weights_cache_path):
             if self.verbose:
-                print(f"{self.LOG_STEP}: read_weights() from cached file '{self.weights_cache_path}'.")
+                print(f"{self.LOG_STEP}: read weights from cached file.")
+                print(f" * weights_cache_path: '{self.weights_cache_path}'")
             weights = read_weights(self.weights_cache_path)
             if len(weights) != len(self.sequences):
                 error_log = f"{self.LOR_ERROR} in {self}: read_weights(weights_cache_path='{self.weights_cache_path}'): "
@@ -350,26 +351,22 @@ class MSA:
                 error_log = f"{self.LOR_ERROR} in {self}: compute_weights(): "
                 error_log += f"number of computed weights ({len(weights)}) does not match number of sequences ({len(self.sequences)}) in MSA."
                 raise ValueError(error_log)
-            
-            # Save weights in cache file if required
-            if self.weights_cache_path is not None:
-                if self.verbose:
-                    print(f"{self.LOG_STEP}: save computed weights to file '{self.weights_cache_path}'.")
-                    print(f" * weights_cache_path: '{self.weights_cache_path}'")
-                write_weights(weights, self.weights_cache_path)
 
-        # Set propreties
+        # Assign weights
         for i, wi in enumerate(weights):
             self.sequences[i].weight = wi
 
-        # Put weight of first sequence to 0.0 manually to ignore it if required
-        if not self.count_target_sequence:
-            self.sequences[0].weight = 0.0
-
         # Set Neff
-        self.Neff: float = np.sum([s.weight for s in self.sequences])
+        self.Neff: float = np.sum(weights)
         if self.verbose:
             print(f" * Neff (sum of weights): {self.Neff:.2f}")
+
+        # Save weights in cache file if required
+        if self.weights_cache_path is not None and not os.path.isfile(self.weights_cache_path):
+            if self.verbose:
+                print(f"{self.LOG_STEP}: save computed weights to file '{self.weights_cache_path}'.")
+                print(f" * weights_cache_path: '{self.weights_cache_path}'")
+            write_weights(weights, self.weights_cache_path)
         
     def _init_counts(self) -> None:
         """Initialize residues counts and frequences from the MSA."""
@@ -541,6 +538,7 @@ class MSA:
         # Compute mutations
         dE_arr = []
         for i, mutation in enumerate(mutations_list_reference):
+            assert 1 <= mutation.position <= self.length, f"{self.LOR_ERROR} in {self}.eval_mutations(): position of mutation='{mutation}' is out of range of target sequence of the MSA."
             if not disable_wt_warning:
                 aa_target = self.target_sequence[mutation.position-1]
                 aa_mutation = mutation.wt_aa.one
@@ -564,7 +562,7 @@ class MSA:
 
         return dE_arr
     
-    def get_scores(self, round_digit: Union[None, int]=None) -> List[dict]:
+    def get_scores(self, round_digit: Union[None, int]=None, log_results: bool=False,) -> List[dict]:
         """Compute scores (gap_freq, wt_freq, mt_freq, RSA, LOR, RSA*LOR, ...) for each single-site mutation.
 
         NOTE: mutation are indicated in 3 different references:
@@ -632,9 +630,15 @@ class MSA:
                     if val is not None:
                         score[prop] = round(val, round_digit)
 
+        # Log
+        if log_results:
+            scores_csv = CSV(list(scores[0].keys()), name=self.name)
+            scores_csv.add_entries(scores[0:40])
+            scores_csv.show(n_entries=40, max_colsize=23)
+
         return scores
     
-    def save_scores(self, scores_path: str, sep: str=";", log_results: bool=False, round_digit: Union[None, int]=None) -> List[dict]:
+    def save_scores(self, scores_path: str, round_digit: Union[None, int]=None, sep: str=";", log_results: bool=False) -> List[dict]:
         """Compute scores (gap_freq, wt_freq, mt_freq, RSA, LOR, RSA*LOR, ...) for each single-site mutation and save it to scores_path as a '.csv' file.
 
         NOTE: mutation are indicated in 3 different references:

@@ -2,7 +2,6 @@
 
 TO DO: MAIN --------------------------------------------------------------------
 
- - Clean code and code structure
  - Cache for RSA
  - Non-standard residue in structure ?
  - WARNING for alignment errors and for RSA missing values ???
