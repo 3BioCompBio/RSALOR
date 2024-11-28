@@ -44,7 +44,9 @@ class MSA:
             msa_path: str,
             pdb_path: Union[None, str]=None,
             chain: Union[None, str]=None,
-            dssp_path: Union[None, str]=None,
+            rsa_solver: Literal["DSSP", "MuSiC"]="DSSP",
+            rsa_solver_path: Union[None, str]=None,
+            rsa_cache_path: Union[None, str]=None,
             theta_regularization: float=0.01,
             n_regularization: float=0.0,
             count_target_sequence: bool=True,
@@ -67,7 +69,9 @@ class MSA:
         msa_path (str):                                 path to MSA '.fasta' file
         pdb_path (Union[None, str]=None):               path to PDB '.pdb' file (leave empty to ignore structure)
         chain (Union[None, str]=None):                  chain of the PDB to consider
-        dssp_path (Union[None, str]=None):              path to DSSP executable to compute RSA (leave empty if 'dssp' or 'mkdssp' is in system PATH)
+        rsa_solver (Literal["DSSP", "MuSiC"]="DSSP")    solver to use to compute RSA
+        rsa_solver_path (Union[None, str]=None):        path to DSSP/MuSiC executable to compute RSA (leave empty software is in system PATH)
+        rsa_cache_path (Union[None, str]=None):         path to write/read to/from RSA values
         theta_regularization (float=0.01):              regularization term for LOR/LR at frequency level
         n_regularization (float=0.0):                   regularization term for LOR/LR at counts level
         count_target_sequence (bool=True):              count target (first) sequence of the MSA in frequencies
@@ -94,7 +98,9 @@ class MSA:
             self.name = self.msa_filename.removesuffix(".fasta")
         self.pdb_path: str = pdb_path
         self.chain: str = chain
-        self.dssp_path: str = dssp_path
+        self.rsa_solver: str = rsa_solver
+        self.rsa_solver_path: str = rsa_solver_path
+        self.rsa_cache_path: str = rsa_cache_path
         self.theta_regularization: float = theta_regularization
         self.n_regularization: float = n_regularization
         self.remove_redundant_sequences: bool = remove_redundant_sequences
@@ -133,7 +139,7 @@ class MSA:
 
     # Constructor dependencies -------------------------------------------------
     def _init_structure(self) -> None:
-        """Parse PDB file and compute RSA (Relative Solvent Accessibility) values with DSSP."""
+        """Parse PDB file and compute RSA (Relative Solvent Accessibility) values with DSSP or MuSiC."""
 
         # Case: pdb_path is None -> just log some warnings and continue
         if self.pdb_path is None:
@@ -142,9 +148,9 @@ class MSA:
                 warning_log += f"   However chain is set to '{self.chain}'."
                 warning_log += f"   Please specify pdb_path to consider structure and RSA."
                 print(warning_log)
-            if self.dssp_path is not None:
+            if self.rsa_solver_path is not None:
                 warning_log = f"{self.LOG_WARNING} in {self}: pdb_path is not set, so structure and RSA are ignored."
-                warning_log += f"   However dssp_path is set to '{self.dssp_path}'."
+                warning_log += f"   However rsa_solver_path is set to '{self.rsa_solver_path}'."
                 warning_log += f"   Please specify pdb_path to consider structure and RSA."
                 print(warning_log)
             self.structure = None
@@ -152,9 +158,16 @@ class MSA:
         
         # Set Structure
         if self.verbose:
-            print(f"{self.LOG_STEP}: parse PDB structure '{os.path.basename(self.pdb_path)}' (chain '{self.chain}') and compute RSA with DSSP.")
+            print(f"{self.LOG_STEP}: parse PDB structure '{os.path.basename(self.pdb_path)}' (chain '{self.chain}') and compute RSA with DSSP or MuSiC.")
         assert self.chain is not None, f"{self.LOR_ERROR} in {self}: pdb_path='{self.pdb_path}' is set, so please set also the PDB chain to consider."
-        self.structure = Structure(self.pdb_path, self.chain, self.dssp_path, verbose=self.verbose)
+        self.structure = Structure(
+            self.pdb_path,
+            self.chain,
+            rsa_solver=self.rsa_solver,
+            solver_path=self.rsa_solver_path,
+            rsa_cache_path=self.rsa_cache_path,
+            verbose=self.verbose,
+        )
 
     def _read_sequences(self) -> None:
         """Read sequences from MSA FASTA file."""
@@ -267,7 +280,7 @@ class MSA:
         i_pdb, i_fasta_trimmed = 0, 0
         for aa_pdb, aa_fasta_trimmed in zip(self.str_seq_align.align1, self.str_seq_align.align2):
             if aa_pdb != self.GAP_CHAR and aa_fasta_trimmed != self.GAP_CHAR:
-                residue = self.structure.residues[i_pdb]
+                residue = self.structure.chain_residues[i_pdb]
                 fasta_trimmed_id = str(i_fasta_trimmed+1)
                 self.pdb_to_fasta_trimmed[residue.resid] = fasta_trimmed_id
                 self.fasta_trimmed_to_pdb[fasta_trimmed_id] = residue.resid

@@ -1,91 +1,85 @@
 
 # Imports ----------------------------------------------------------------------
 import os.path
-import sys
-from typing import Union, List, Dict
-import tempfile
-from contextlib import contextmanager
-from Bio.PDB import PDBParser
-from Bio.PDB.DSSP import DSSP
+from typing import Union, List, Dict, Literal
 from rsalor.sequence import AminoAcid
-from rsalor.sequence import Sequence
 from rsalor.structure import Residue
-from rsalor.utils import find_file
-
-
-# Just to delete WARNINGS from DSSP and BioPython ------------------------------
-# Because BioPython and DSSP does not provide a disable WARNINGS option ...
-@contextmanager
-def suppress_stderr():
-    """Redirect standard error to null (with some magic)"""
-    original_stderr = sys.stderr
-    sys.stderr = open(os.devnull, 'w')
-    try:
-        yield
-    finally:
-        sys.stderr.close()
-        sys.stderr = original_stderr
-
+from rsalor.sequence import Sequence
+from rsalor.rsa import RSASolver, RSADSSP, RSAMuSiC
 
 # Execution --------------------------------------------------------------------
 class Structure:
-    """Structure container for a chain from a PDB file and its RSA values computed by DSSP.
-        uses BioPython interface (https://biopython.org/docs/1.75/api/Bio.PDB.DSSP.html) with the DSSP algorithm (https://swift.cmbi.umcn.nl/gv/dssp/)
+    """Structure object for parsing all Residues from ATOM lines and assign RSA (with DSSP or MuSiC).
 
     usage:
-    structure = Structure('./my_pdb.pdb', 'A', './softwares/dssp') \n
-    for residue in structure: print(residue)
+    structure = Structure('./my_pdb.pdb', 'A')
     """
 
-
     # Constants ----------------------------------------------------------------
-    DSSP_CANDIDATES_PATHS = ["mkdssp", "dssp"]
-    DSSP_HELPER_LOG = """-------------------------------------------------------
-In order to solve Relative Solvent Accessiblity (RSA), RSALOR package uses:
-Python package biopython -> interface with the DSSP algorithms (https://biopython.org/docs/1.75/api/Bio.PDB.DSSP.html).
-The DSSP software (free for academic use) has to be installed on your computer.
-Please install DSSP (https://swift.cmbi.umcn.nl/gv/dssp/) and specify the path to its executable or add it to the system PATH.
-DSSP source code can be found here: https://github.com/cmbi/hssp
-NOTE: you can still use the RSALOR package without DSSP if you only want LOR values of the MSA without using RSA (just set pdb_path=None).
--------------------------------------------------------"""
-
+    RSA_SOLVERS: Dict[str, RSASolver] = {
+        "DSSP": RSADSSP,
+        "MuSiC": RSAMuSiC,
+    }
 
     # Constructor --------------------------------------------------------------
-    def __init__(self, pdb_path: str, chain: str, dssp_path: Union[None, str]=None, verbose: bool=False):
+    def __init__(
+            self,
+            pdb_path: str,
+            chain: str,
+            rsa_solver: Literal["DSSP", "MuSiC"]="DSSP",
+            rsa_solver_path: Union[None, str]=None,
+            rsa_cache_path: Union[None, str]=None,
+            verbose: bool=False,
+        ):
+        """Structure object for parsing all Residues from ATOM lines and assign RSA (with DSSP or MuSiC).
+
+        arguments:
+        pdb_path (str):                                   path to PDB file
+        chain (str):                                      target chain in the PDB
+        rsa_solver (Literal["DSSP", "MuSiC"]="DSSP"):     solver to use to compute RSA
+        rsa_solver_path (Union[None, str]=None):          path to solver executable
+        rsa_cache_path (Union[None, str]=None):           path to write/read to/from RSA values
+        verbose (bool=False):                             set True for logs
+        """
 
         # Guardians
         assert os.path.isfile(pdb_path), f"ERROR in Structure(): pdb_path='{pdb_path}' file does not exist."
         assert pdb_path.endswith(".pdb"), f"ERROR in Structure(): pdb_path='{pdb_path}' should end with '.pdb'."
         assert len(chain) == 1 and chain != " ", f"ERROR in Structure(): chain='{chain}' should be a string of length 1 and not ' '."
+        solver_list = list(self.RSA_SOLVERS.keys())
+        assert rsa_solver in solver_list, f"ERROR in Structure(): rsa_solver='{rsa_solver}' should be in {solver_list}."
 
         # Init base properties
         self.pdb_path = pdb_path
-        self.pdb_filename = os.path.basename(self.pdb_path)
-        self.pdb_name = os.path.basename(self.pdb_filename)
+        self.pdb_name = os.path.basename(self.pdb_path).removesuffix(".pdb")
         self.chain = chain
         self.name = f"{self.pdb_name}_{self.chain}"
-        self.input_dssp_path = dssp_path
+        self.rsa_solver = rsa_solver
+        self.rsa_solver_path = rsa_solver_path
         self.verbose = verbose
 
-        # Init Structure data
+        # Parse structure
         self.residues: List[Residue] = []
+        self.chain_residues: List[Residue] = []
         self.residues_map: Dict[str, Residue] = {}
-        self.sequence: Sequence
+        self._parse_structure()
 
-        # Run DSSP
-        self.residues = self.run_dssp()
+        # Set sequence
+        self.sequence = Sequence(f"{self.name} (ATOM-lines)", "".join(res.amino_acid.one for res in self.chain_residues))
+
+        # Assign RSA
+        solver: RSASolver = self.RSA_SOLVERS[rsa_solver]
+        rsa_map = solver(self.rsa_solver_path, self.verbose).run(self.pdb_path, rsa_cache_path=rsa_cache_path)
+        n_assigned = 0
+        for residue in self.residues:
+            resid = residue.resid
+            if resid in rsa_map:
+                n_assigned += 1
+                residue.rsa = rsa_map[resid]
 
         # Log
         if self.verbose:
-            n_assigned = len([res for res in self.residues if res.rsa is not None])
-            print(f" * {n_assigned} / {len(self.residues)} assigned RSA values for chain '{self.chain}'")
-
-        # Set other properties
-        for residue in self.residues:
-            self.residues_map[residue.resid] = residue
-        seq_name = f"{self.name} (ATOM-lines)"
-        seq_str = "".join(res.amino_acid.one for res in self.residues)
-        self.sequence = Sequence(seq_name, seq_str)
+            print(f" * {n_assigned} / {len(self.chain_residues)} assigned RSA values for chain '{self.chain}'")
 
 
     # Base properties ----------------------------------------------------------
@@ -103,117 +97,62 @@ NOTE: you can still use the RSALOR package without DSSP if you only want LOR val
     
     def __iter__(self):
         return iter(self.residues)
+    
+    # Deendencies --------------------------------------------------------------
+    def _parse_structure(self) -> None:
+        """Parse residues data from PDB file."""
+        
+        # Init
+        model_counter = 0
+        current_chain = None
+        closed_chains = set()
 
-
-    # Dependencies -------------------------------------------------------------
-    def run_dssp(self) -> List[Residue]:
-        """Run DSSP and return a list of Residues with assigned RSA values."""
-
-        # Init DSSP path
-        dssp_path = self._init_dssp_path()
-
-        # Inject CRYST1 line (because DSSP has decided to reject PDBs without CRYST1 line lol wtf why)
-        pdb_with_cryst1_line = self._inject_cryst1_line(dssp_path)
-        if pdb_with_cryst1_line is None: # CRYST1 line is already in PDB or this version of DSSP does not requires it.
-            residues = self._run_dssp_backend(self.pdb_path, dssp_path)
-        else: # Inject CRYST1 line in PDB
-            with tempfile.NamedTemporaryFile(delete=True) as temp_file:
-                tmp_pdb_path = temp_file.name
-                with open(tmp_pdb_path, "w") as fs:
-                    fs.write(pdb_with_cryst1_line)
-                residues = self._run_dssp_backend(tmp_pdb_path, dssp_path)
-
-        # Return
-        return residues
-
-    def _init_dssp_path(self) -> str:
-        """Find an existing executable file for DSSP on the compyter."""
-        if self.input_dssp_path is not None:
-            dssp_path_list = [self.input_dssp_path] + self.DSSP_CANDIDATES_PATHS
-        else:
-            dssp_path_list = self.DSSP_CANDIDATES_PATHS
-        dssp_path = find_file(dssp_path_list, is_software=True, name="DSSP", description=self.DSSP_HELPER_LOG, verbose=self.verbose)
-        return dssp_path
-
-    def _inject_cryst1_line(self, dssp_path: str) -> Union[None, str]:
-        """Inject CRYST1 line in a PDB file if there is not one.
-            -> If CRYST1 line is present, return None
-            -> Else return a string of the PDB file with the CRYST1 line
-        """
-
-        # No need to inject CRYST1 line with mkdssp
-        if dssp_path.endswith("mkdssp"):
-            return None
-
-        # Constants
-        CRYST1_HEADER = "CRYST1"
-        ATOM_HEADER = "ATOM"
-        DEFAULT_CRYST1_LINE = "CRYST1    1.000    1.000    1.000  90.00  90.00  90.00 P 1           1          \n"
-
-        # Read lines
-        new_lines = []
-        with open(self.pdb_path, "r") as fs:
+        # Parse PDB residues
+        with open(self.pdb_path, "r", encoding="ISO-8859-1") as fs:
             line = fs.readline()
-
-            # Read lines to detect CRYST1 line
             while line:
-                if line.startswith(CRYST1_HEADER): # Return None to specify that CRYST1 line is already here
-                    return None
-                if line.startswith(ATOM_HEADER):
-                    new_lines.append(DEFAULT_CRYST1_LINE)
-                    new_lines.append(line)
-                    line = fs.readline()
-                    break
-                new_lines.append(line)
+                prefix = line[0:6]
+                
+                # Atom line
+                if prefix == "ATOM  " or prefix == "HETATM":
+                    current_chain = line[21]
+                    if current_chain in closed_chains: # discard ATOM line if chain is closed
+                        line = fs.readline()
+                        continue
+                    position = line[22:27].replace(" ", "")
+                    aa_three = line[17:20]
+                    aa = AminoAcid.parse_three(aa_three)
+                    if aa.is_unknown(): # discard non amino acid ATOM lines
+                        line = fs.readline()
+                        continue
+                    resid = current_chain + position
+                    if resid not in self.residues_map:
+                        residue = Residue(current_chain, position, aa)
+                        self.residues.append(residue)
+                        self.residues_map[resid] = residue
+                
+                # Manage multiple models: consider only model 1
+                elif prefix == "MODEL ":
+                    model_counter += 1
+                    if model_counter > 1:
+                        print(f"WARNING in {self}: PDB contains multiple models, but only model 1 will be considered.")
+                        break
+
+                # Manage closed chains: ATOMS that appears after the chain is closed are not part of the protein chain
+                elif prefix == "TER   " or prefix == "TER\n":
+                    if current_chain is not None:
+                        closed_chains.add(current_chain)
+                
+                # Take next line
                 line = fs.readline()
-            
-            # After injecting CRYST1 line, continue following lines
-            while line:
-                new_lines.append(line)
-                line = fs.readline()
+        
+        # Set residues list of target chain
+        self.chain_residues = [res for res in self.residues if res.chain == self.chain]
 
-        # Return pdb string with injected CRYST1 line
-        return "".join(new_lines)
-
-    def _run_dssp_backend(self, pdb_path: str, dssp_path: str) -> List[Residue]:
-        """Run DSSP software with the BioPython interface."""
-
-        # Parse PDB with BioPython
-        structure = PDBParser().get_structure(self.pdb_name, pdb_path)
-        model = structure[0]
-
-        # Run DSSP
-        if not self.verbose: # Run DSSP with WARNINGS desabled
-            with suppress_stderr():
-                dssp = DSSP(model, pdb_path, dssp=dssp_path)
-        else: # Run DSSP normally
-            dssp = DSSP(model, pdb_path, dssp=dssp_path)
-
-        # Parse Residues
-        target_chain = self.chain
-        resid_set = set()
-        residues_keys = list(dssp.keys())
-        residues: List[Residue] = []
-        for res_key in residues_keys:
-            chain, (res_insertion, res_id, res_alternate_location) = res_key
-            if chain != target_chain:
-                continue
-            resid = f"{res_insertion}{res_id}".replace(" ", "")
-            if resid not in resid_set:
-                res_data = dssp[res_key]
-                resid_set.add(resid)
-                aa_one = res_data[1]
-                if aa_one in AminoAcid.ONE_2_ID:
-                    aa = AminoAcid(res_data[1])
-                else:
-                    aa = AminoAcid.get_unknown()
-                rsa = res_data[3]
-                if isinstance(rsa, float):
-                    rsa = round(rsa * 100.0, 4)
-                    residue = Residue(target_chain, resid, aa, rsa)
-                else:
-                    residue = Residue(target_chain, resid, aa)
-                residues.append(residue)
-
-        # Return
-        return residues
+        # No target chain error
+        if len(self.chain_residues) == 0:
+            print(f"ERROR in {self}._parse_structure():")
+            print(f" * pdb_path: '{self.pdb_path}'")
+            print(f" * num total residues: {len(self.residues)}")
+            print(f" * existing chains: {list(set([res.chain for res in self.residues]))}")
+            raise ValueError(f"ERROR in {self}._parse_structure(): target chain '{self.chain}' not found in PDB file.")
