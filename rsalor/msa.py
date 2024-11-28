@@ -164,7 +164,7 @@ class MSA:
             self.pdb_path,
             self.chain,
             rsa_solver=self.rsa_solver,
-            solver_path=self.rsa_solver_path,
+            rsa_solver_path=self.rsa_solver_path,
             rsa_cache_path=self.rsa_cache_path,
             verbose=self.verbose,
         )
@@ -651,7 +651,14 @@ class MSA:
 
         return scores
     
-    def save_scores(self, scores_path: str, round_digit: Union[None, int]=None, sep: str=";", log_results: bool=False) -> List[dict]:
+    def save_scores(
+            self,
+            scores_path: str,
+            round_digit: Union[None, int]=None,
+            sep: str=";",
+            missing_value: Union[None, str]="XXX",
+            log_results: bool=False
+        ) -> List[dict]:
         """Compute scores (gap_freq, wt_freq, mt_freq, RSA, LOR, RSA*LOR, ...) for each single-site mutation and save it to scores_path as a '.csv' file.
 
         NOTE: mutation are indicated in 3 different references:
@@ -676,6 +683,13 @@ class MSA:
         scores_csv = CSV(scores_properties, name=self.name)
         scores_csv.set_sep(sep)
         scores_csv.add_entries(scores)
+
+        # Change None to missing_value
+        if missing_value is not None:
+            for entry in scores_csv:
+                for prop in scores_properties:
+                    if entry[prop] is None:
+                        entry[prop] = missing_value
 
         # Log
         if log_results:
