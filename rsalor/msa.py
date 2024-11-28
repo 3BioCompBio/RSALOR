@@ -87,8 +87,7 @@ class MSA:
         """
 
         # MSA path Guardians
-        assert msa_path.endswith(".fasta"), f"{self.LOR_ERROR} in MSA(): msa_path='{msa_path}' should end with '.fasta'."
-        assert os.path.exists(msa_path), f"{self.LOR_ERROR} in MSA(): msa_path='{msa_path}' files does not exist."
+        self._verify_input_msa_path(msa_path)
 
         # Fill basic properties
         self.msa_path: str = msa_path
@@ -718,6 +717,24 @@ class MSA:
 
     # Guardians Dependencies ---------------------------------------------------
     # Helpers to verify coherence of inputs and current state
+
+    def _verify_input_msa_path(self, msa_path: str) -> None:
+        """For correct format and existance of input msa_path."""
+
+        # Existance
+        #assert os.path.exists(msa_path), f"{self.LOR_ERROR} in MSA(): msa_path='{msa_path}' files does not exist."
+
+        # FASTA format
+        if not msa_path.endswith(".fasta"):
+            error_log = f"{self.LOR_ERROR} in MSA(): msa_path='{msa_path}' should end with '.fasta'."
+            # Hint for '.ali' format
+            if msa_path.endswith(".ali"):
+                error_log += f"\n * msa_path: '{msa_path}'"
+                error_log += f"\n * input msa_path is expected to be a MSA file in FASTA ('.fasta') format."
+                error_log += f"\n * Please convert the MSA to '.fasta' with python script: "
+                error_log += "\nfrom rsalor.utils import ali_to_fasta"
+                error_log += "\nali_to_fasta('./my_msa.ali', './my_msa.fasta')\n"
+            raise ValueError(error_log)
 
     def _verify_sequence_length(self, sequence: Sequence, target_length: int, i: int) -> None:
         """For coherence of all sequences in the MSA."""
