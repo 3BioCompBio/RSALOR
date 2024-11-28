@@ -34,8 +34,9 @@ extern "C" float* computeWeightsBackend(
     // Check depth consistency
     unsigned int observed_msa_depth = msa.get_depth();
     if(observed_msa_depth != msa_depth) {
-        std::cerr << "ERROR in computeWeights() (C++ backend): input msa_depth do not match to ovserved msa_depth." << std::endl;
-        std::cerr << " * input msa_depth: " << msa_depth << std::endl;
+        std::cerr << "ERROR in computeWeights() (C++ backend): input msa_depth do not match to computed msa depth." << std::endl;
+        std::cerr << " * msa_path:           " << msa_path << std::endl;
+        std::cerr << " * input msa_depth:    " << msa_depth << std::endl;
         std::cerr << " * observed msa_depth: " << observed_msa_depth << std::endl;
         throw std::runtime_error("Invalid msa_depth argument");
     }

@@ -29,12 +29,12 @@ def suppress_stderr():
 
 # Execution --------------------------------------------------------------------
 class Structure:
-    """Structure container for a chain from a PDB file and its RSA values assigned by DSSP.
+    """Structure container for a chain from a PDB file and its RSA values computed by DSSP.
         uses BioPython interface (https://biopython.org/docs/1.75/api/Bio.PDB.DSSP.html) with the DSSP algorithm (https://swift.cmbi.umcn.nl/gv/dssp/)
 
     usage:
-    structure = Structure('./my_pdb.pdb', 'A', './softwares/dssp')
-    for residue in ststructure: print(residue)
+    structure = Structure('./my_pdb.pdb', 'A', './softwares/dssp') \n
+    for residue in structure: print(residue)
     """
 
 
@@ -42,11 +42,11 @@ class Structure:
     DSSP_CANDIDATES_PATHS = ["mkdssp", "dssp"]
     DSSP_HELPER_LOG = """-------------------------------------------------------
 In order to solve Relative Solvent Accessiblity (RSA), RSALOR package uses:
-Python package BioPython: interface with the DSSP algorithms (https://biopython.org/docs/1.75/api/Bio.PDB.DSSP.html).
+Python package biopython -> interface with the DSSP algorithms (https://biopython.org/docs/1.75/api/Bio.PDB.DSSP.html).
 The DSSP software (free for academic use) has to be installed on your computer.
 Please install DSSP (https://swift.cmbi.umcn.nl/gv/dssp/) and specify the path to its executable or add it to the system PATH.
 DSSP source code can be found here: https://github.com/cmbi/hssp
-Note: you can still use the RSALOR package without DSSP if you only want LOR values of the MSA without using RSA.
+NOTE: you can still use the RSALOR package without DSSP if you only want LOR values of the MSA without using RSA (just set pdb_path=None).
 -------------------------------------------------------"""
 
 
@@ -60,9 +60,11 @@ Note: you can still use the RSALOR package without DSSP if you only want LOR val
 
         # Init base properties
         self.pdb_path = pdb_path
-        self.pdb_name = os.path.basename(pdb_path.removesuffix('.pdb'))
+        self.pdb_filename = os.path.basename(self.pdb_path)
+        self.pdb_name = os.path.basename(self.pdb_filename)
         self.chain = chain
         self.name = f"{self.pdb_name}_{self.chain}"
+        self.input_dssp_path = dssp_path
         self.verbose = verbose
 
         # Init Structure data
@@ -70,23 +72,13 @@ Note: you can still use the RSALOR package without DSSP if you only want LOR val
         self.residues_map: Dict[str, Residue] = {}
         self.sequence: Sequence
 
-        # Init DSSP path
-        if dssp_path is not None:
-            dssp_path_list = [dssp_path] + self.DSSP_CANDIDATES_PATHS
-        else:
-            dssp_path_list = self.DSSP_CANDIDATES_PATHS
-        self.dssp_path = find_file(dssp_path_list, is_software=True, log_steps=self.verbose, name="DSSP", description=self.DSSP_HELPER_LOG)
+        # Run DSSP
+        self.residues = self.run_dssp()
 
-        # Inject CRYST1 line (because DSSP has decided to reject PDBs without CRYST1 line lol wtf why)
-        pdb_with_cryst1_line = self._inject_cryst1_line()
-        if pdb_with_cryst1_line is None: # CRYST1 line is already in PDB
-            self._run_dssp(self.pdb_path)
-        else: # Inject CRYST1 line in PDB
-            with tempfile.NamedTemporaryFile(delete=True) as temp_file:
-                tmp_pdb_path = temp_file.name
-                with open(tmp_pdb_path, "w") as fs:
-                    fs.write(pdb_with_cryst1_line)
-                self._run_dssp(self.pdb_path)
+        # Log
+        if self.verbose:
+            n_assigned = len([res for res in self.residues if res.rsa is not None])
+            print(f" * {n_assigned} / {len(self.residues)} assigned RSA values for chain '{self.chain}'")
 
         # Set other properties
         for residue in self.residues:
@@ -114,14 +106,43 @@ Note: you can still use the RSALOR package without DSSP if you only want LOR val
 
 
     # Dependencies -------------------------------------------------------------
-    def _inject_cryst1_line(self) -> Union[None, str]:
+    def run_dssp(self) -> List[Residue]:
+        """Run DSSP and return a list of Residues with assigned RSA values."""
+
+        # Init DSSP path
+        dssp_path = self._init_dssp_path()
+
+        # Inject CRYST1 line (because DSSP has decided to reject PDBs without CRYST1 line lol wtf why)
+        pdb_with_cryst1_line = self._inject_cryst1_line(dssp_path)
+        if pdb_with_cryst1_line is None: # CRYST1 line is already in PDB or this version of DSSP does not requires it.
+            residues = self._run_dssp_backend(self.pdb_path, dssp_path)
+        else: # Inject CRYST1 line in PDB
+            with tempfile.NamedTemporaryFile(delete=True) as temp_file:
+                tmp_pdb_path = temp_file.name
+                with open(tmp_pdb_path, "w") as fs:
+                    fs.write(pdb_with_cryst1_line)
+                residues = self._run_dssp_backend(tmp_pdb_path, dssp_path)
+
+        # Return
+        return residues
+
+    def _init_dssp_path(self) -> str:
+        """Find an existing executable file for DSSP on the compyter."""
+        if self.input_dssp_path is not None:
+            dssp_path_list = [self.input_dssp_path] + self.DSSP_CANDIDATES_PATHS
+        else:
+            dssp_path_list = self.DSSP_CANDIDATES_PATHS
+        dssp_path = find_file(dssp_path_list, is_software=True, name="DSSP", description=self.DSSP_HELPER_LOG, verbose=self.verbose)
+        return dssp_path
+
+    def _inject_cryst1_line(self, dssp_path: str) -> Union[None, str]:
         """Inject CRYST1 line in a PDB file if there is not one.
             -> If CRYST1 line is present, return None
             -> Else return a string of the PDB file with the CRYST1 line
         """
 
         # No need to inject CRYST1 line with mkdssp
-        if self.dssp_path.endswith("mkdssp"):
+        if dssp_path.endswith("mkdssp"):
             return None
 
         # Constants
@@ -153,8 +174,8 @@ Note: you can still use the RSALOR package without DSSP if you only want LOR val
 
         # Return pdb string with injected CRYST1 line
         return "".join(new_lines)
-    
-    def _run_dssp(self, pdb_path: str):
+
+    def _run_dssp_backend(self, pdb_path: str, dssp_path: str) -> List[Residue]:
         """Run DSSP software with the BioPython interface."""
 
         # Parse PDB with BioPython
@@ -164,16 +185,18 @@ Note: you can still use the RSALOR package without DSSP if you only want LOR val
         # Run DSSP
         if not self.verbose: # Run DSSP with WARNINGS desabled
             with suppress_stderr():
-                dssp = DSSP(model, self.pdb_path, dssp=self.dssp_path)
+                dssp = DSSP(model, pdb_path, dssp=dssp_path)
         else: # Run DSSP normally
-            dssp = DSSP(model, self.pdb_path, dssp=self.dssp_path)
+            dssp = DSSP(model, pdb_path, dssp=dssp_path)
 
         # Parse Residues
+        target_chain = self.chain
         resid_set = set()
         residues_keys = list(dssp.keys())
+        residues: List[Residue] = []
         for res_key in residues_keys:
             chain, (res_insertion, res_id, res_alternate_location) = res_key
-            if chain != self.chain:
+            if chain != target_chain:
                 continue
             resid = f"{res_insertion}{res_id}".replace(" ", "")
             if resid not in resid_set:
@@ -186,8 +209,11 @@ Note: you can still use the RSALOR package without DSSP if you only want LOR val
                     aa = AminoAcid.get_unknown()
                 rsa = res_data[3]
                 if isinstance(rsa, float):
-                    rsa = round(rsa * 100.0, 2)
-                    residue = Residue(self.chain, resid, aa, rsa)
+                    rsa = round(rsa * 100.0, 4)
+                    residue = Residue(target_chain, resid, aa, rsa)
                 else:
-                    residue = Residue(self.chain, resid, aa)
-                self.residues.append(residue)
+                    residue = Residue(target_chain, resid, aa)
+                residues.append(residue)
+
+        # Return
+        return residues

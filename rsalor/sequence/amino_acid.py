@@ -2,15 +2,19 @@
 # Imports ----------------------------------------------------------------------
 from typing import List, Dict
 
-
 # AminoAcid --------------------------------------------------------------------
 class AminoAcid:
-    """
-    Container class for the 20 standard proteogenic amino acids.
+    """Container class for the 20 standard proteogenic amino acids.
         * Manages mapping between amino acids: id, one-letter-code and three-letter-code
-        * Manages non-standard amino acids three-letters-codes
-    """
+        * Manages non-standard amino acids three-letters-codes and their corresponding standard AA
 
+    usage:
+    
+    alanine_id: int = AminoAcid.ONE_2_ID['A'] \n
+    one_letter_code_3: str = AminoAcid.ID_2_ONE[3] \n
+    ala: AminoAcid= AminoAcid('A') \n
+    non_standard_metionine: AminoAcid = AminoAcid.parse_three('MSE')
+    """
 
     # Static Properties --------------------------------------------------------
 
@@ -37,6 +41,16 @@ class AminoAcid:
         (18, "W", "TRP", "tryptophane"),
         (19, "Y", "TYR", "tyrosine"),
     ]
+
+    # Gap and Unknown Amino Acid properties
+    GAP_ID = 20
+    GAP_ONE = "-"
+    GAP_THREE = "GAP"
+    GAP_NAME = "gap"
+    UNK_ID = -1
+    UNK_ONE = "X"
+    UNK_THREE = "XXX"
+    UNK_NAME = "unknown"
 
     # Non-Standard Amino Acids three-letter-codes mapped to closest Standard Amino Acids
     _NON_STANDARD_AAS = {
@@ -148,20 +162,20 @@ class AminoAcid:
     ONE_2_ID: Dict[str, int] = {aa[1]: aa[0] for aa in _AA_LIST}
     ID_2_ONE: Dict[int, str] = {aa[0]: aa[1] for aa in _AA_LIST}
 
-
     # Construcors --------------------------------------------------------------
     def __init__(self, aa_one: str) -> "AminoAcid":
+        """Only accepts standard Amino Acid one-letter-codes."""
         assert aa_one in self._ONE_MAP, f"ERROR in AminoAcid('{aa_one}'): invalid amino acid one-letter-code."
         aa_metadata = self._ONE_MAP[aa_one]
         self.id: int = aa_metadata[0]
         self.one: str = aa_metadata[1]
         self.three: str = aa_metadata[2]
-        self.three_standard: str = self.three
+        self.three_standard: str = aa_metadata[2]
         self.name: str = aa_metadata[3]
 
     @classmethod
     def parse_three(cls, aa_three: int) -> "AminoAcid":
-        """Parse an AminoAcid from its three-letter-code (can handle non-standard AAs)."""
+        """Parse an AminoAcid from its three-letter-code (can handle non-standard AAs and mapping to corresponding standard AA)."""
 
         # Standard case
         aa_one = cls.THREE_2_ONE.get(aa_three, None)
@@ -181,19 +195,30 @@ class AminoAcid:
 
     @classmethod
     def get_all(cls) -> List["AminoAcid"]:
-        """Get the list of all AminoAcids."""
+        """Get the list of all 20 standard AminoAcids."""
         return [AminoAcid(aa_metadata[1]) for aa_metadata in cls._AA_LIST]
     
     @classmethod
     def get_unknown(cls) -> "AminoAcid":
+        """Return an unknown AminoAcid."""
         aa = AminoAcid("A")
-        aa.id = -1
-        aa.one = "X"
-        aa.three = "XXX"
+        aa.id = AminoAcid.UNK_ID
+        aa.one = AminoAcid.UNK_ONE
+        aa.three = AminoAcid.UNK_THREE
         aa.three_standard = None
-        aa.name = "unknown"
+        aa.name = AminoAcid.UNK_NAME
         return aa
-
+    
+    @classmethod
+    def get_gap(cls) -> "AminoAcid":
+        """Return a gap 'AminoAcid'."""
+        aa = AminoAcid("A")
+        aa.id = AminoAcid.GAP_ID
+        aa.one = AminoAcid.GAP_ONE
+        aa.three = AminoAcid.GAP_THREE
+        aa.three_standard = None
+        aa.name = AminoAcid.GAP_NAME
+        return aa
 
     # Base properties ----------------------------------------------------------
     def __str__(self) -> str:
@@ -201,35 +226,31 @@ class AminoAcid:
             return f"AminoAcid('{self.one}', '{self.three}', id={self.id})"
         else:
             return f"AminoAcid('{self.one}', '{self.three}' (std='{self.three_standard}'), id={self.id})"
+        
+    def is_gap(self) -> bool:
+        self.id == AminoAcid.GAP_ID
+
+    def is_unknown(self) -> bool:
+        return self.id == AminoAcid.UNK_ID
+    
+    def is_aminoacid(self) -> bool:
+        return not self.is_gap()
     
     def is_standard(self) -> bool:
         return self.three == self.three_standard
-    
-    def is_unknown(self) -> bool:
-        return self.one == "X"
-    
-    def __int__(self) -> int:
-        return self.id
-    
-    def __hash__(self) -> int:
-        return self.id
-    
-    def __eq__(self, other: "AminoAcid") -> bool:
-        return self.id == other.id
-    
-    def __neq__(self, other: "AminoAcid") -> bool:
-        return self.id != other.id
-
 
     # Class methods ------------------------------------------------------------
     @classmethod
     def id_exists(cls, id: int) -> bool:
+        """Return if 'id' corresponds to the id of a standard Amino Acid."""
         return id in cls._ID_MAP
 
     @classmethod
     def one_exists(cls, aa_one: str) -> bool:
+        """Return if 'aa_one' corresponds to the one-letter-code of a standard Amino Acid."""
         return aa_one in cls._ONE_MAP
     
     @classmethod
     def three_exists(cls, aa_three: str) -> bool:
+        """Return if 'aa_three' corresponds to the three-letter-code of a standard Amino Acid."""
         return aa_three in cls._THREE_MAP

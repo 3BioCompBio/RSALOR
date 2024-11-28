@@ -11,7 +11,7 @@ class CSV:
     """
     Class to read/write a CSV file and manage it as a dataframe.
         * It never assumes a column or a cell type except when it is specified (all cells as :str by default).
-        * Manage safety: impossible to get redundent values.
+        * Manages safety: impossible to have redundent values in header.
     """
 
     # Constants ----------------------------------------------------------------
@@ -19,8 +19,10 @@ class CSV:
 
     # Constructor --------------------------------------------------------------
     def __init__(
-            self, header: List[str]=[],
-            sep: str=";", name: str="DataFrame",
+            self,
+            header: List[str]=[],
+            sep: str=";",
+            name: str="DataFrame",
             print_warnings: bool=True,
         ):
 
@@ -278,8 +280,11 @@ class CSV:
         """Save to file."""
 
         # Guardians
+        output_path = os.path.abspath(output_path)
         assert any([output_path.endswith(f".{extention}")] for extention in CSV.ALLOWED_EXTENTIONS), f"ERROR in {self}.write('{output_path}'): extention sould be among {CSV.ALLOWED_EXTENTIONS})."
         assert os.path.isdir(os.path.dirname(output_path)), f"ERROR in {self}.write('{output_path}'): destination folder does not exists."
+        if output_path.endswith("tsv"):
+            assert self.sep == "\t",  f"ERROR in {self}.write('{output_path}'): if extention is '.tsv', separator should be '\\t' however sep='{self.sep}'."
         
         # Stringify
         str_header = self.sep.join(self._header.properties)

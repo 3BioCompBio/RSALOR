@@ -14,18 +14,7 @@ def is_convertable_to(input_object, input_type) -> bool:
     except:
         return False
     
-def show_value(input_value, round_digit: int=3, max_length: int=30) -> str:
-    """Format a python object to uniformize and simplify its logging."""
-    if isinstance(input_value, float):
-        return str(round(input_value, round_digit))
-    elif isinstance(input_value, str):
-        if len(input_value) > max_length:
-            return f"'{input_value[:max_length]}...'"
-        return f"'{input_value}'"
-    else:
-        return str(input_value)
-    
-def memory_size_str(n_bytes: int) -> str:
+def memory_str(n_bytes: int) -> str:
     """Return a human readable string for a memory size measure (input in bytes)."""
     if n_bytes / 1000**3 > 1.0:
         return f"{n_bytes / 1000**3:.3f} GB"
@@ -47,7 +36,7 @@ def time_str(n_sec: float) -> str:
     else:
         return f"{n_sec:.3f} sec."
     
-def find_file(path_list: List[str], is_software: bool, log_steps: bool=False, name: str="", description: Union[str, None]=None) -> str:
+def find_file(path_list: List[str], is_software: bool, name: str, description: Union[str, None]=None, verbose: bool=False,) -> str:
     """Find first existing file among path_list."""
     
     # Find valid path among candidates
@@ -57,7 +46,7 @@ def find_file(path_list: List[str], is_software: bool, log_steps: bool=False, na
         # Find as a path to a file
         if os.path.isfile(candidate_path):
             output_path = candidate_path
-            if log_steps:
+            if verbose:
                 print(f" * Set path for [{name}] (AS PATH TO A FILE): '{output_path}'")
             break
 
@@ -68,8 +57,8 @@ def find_file(path_list: List[str], is_software: bool, log_steps: bool=False, na
             which_candidate_path = which(basename)
             if which_candidate_path is not None:
                 output_path = which_candidate_path
-                if log_steps:
-                    print(f" * Set path for [{name}] (AS EXECUTABLE): '{output_path}'")
+                if verbose:
+                    print(f" * set path for [{name}] (AS EXECUTABLE): '{output_path}'")
                 break
 
     # Raise error if no valid path is found

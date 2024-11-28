@@ -15,7 +15,6 @@
         const char* msa_path;
         unsigned int msa_len;
         unsigned int msa_depth;
-        float Neff;
         float seqid;
         bool count_target_sequence;
         unsigned int num_threads;

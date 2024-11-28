@@ -33,16 +33,21 @@ def compute_weights(
         weights (List[float])
     """
 
+    # Guardians
+    assert msa_path.endswith(".fasta"), f"ERROR in compute_weights(): msa_path='{msa_path}' should end with '.fasta'."
+    assert os.path.exists(msa_path), f"ERROR in compute_weights('{msa_path}'): msa_path='{msa_path}' files does not exist."
+    assert 0.0 < seqid < 1.0, f"ERROR in compute_weights('{msa_path}'): seqid={seqid} (for clustering to compute weights) should be in [0, 1] excluded."
+    assert num_threads > 0, f"ERROR in compute_weights('{msa_path}'): num_threads={num_threads} should be stricktly positive."
+
     # Find C++ computeWeightsBackend compiled executable file
     backend_so_paths  = glob.glob(os.path.join(os.path.dirname(__file__), "lib_computeWeightsBackend*"))
     try:
         BACKEND_SO_PATH = backend_so_paths[0]
     except IndexError:
-        print("\nERROR in compute_weights: ")
-        print("\tUnable to find computeWeightsBackend dynamic library path.'")
-        print("\tAre you running as a module before installation?")
-        print("\tIn this case you need to build the shared object.")
-        raise ValueError
+        print("\nERROR in compute_weights(): ")
+        print("   * Unable to find C++ computeWeightsBackend '.so' library path.'")
+        print("   * Please install the pip package or compile the C++ code.")
+        raise ValueError("ERROR in compute_weights(): C++ computeWeightsBackend '.so' library path not found.")
     
     # Init C++ bridge
     computeWeightsBackend = ctypes.CDLL(BACKEND_SO_PATH)
@@ -58,7 +63,7 @@ def compute_weights(
     )
     computeWeightsFunction.restype = ctypes.POINTER(ctypes.c_float * msa_depth)
     freeWeights = computeWeightsBackend.freeWeights
-    #freeWeights.argtypes = (???)
+    #freeWeights.argtypes # not need to define argtypes ???
     freeWeights.restype = None
 
     # Run backend

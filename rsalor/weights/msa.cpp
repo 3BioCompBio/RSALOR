@@ -26,23 +26,16 @@ verbose(m_verbose)
 {
     // Read MSA
     if(this->verbose) {
-        std::cout << "   MSA (C++ backend): read sequences from file." << std::endl;
+        std::cout << "    - RSALOR (C++ backend): read sequences from file." << std::endl;
     }
     this->seqs_int_form = readSequences();
     this->msa_depth = this->seqs_int_form.size();
-    if(this->verbose) {
-        std::cout << "    * msa_depth:  " << this->msa_depth << std::endl;
-    }
 
     // Compute weights
     if(this->verbose) {
-        std::cout << "   MSA (C++ backend): compute sequences weights." << std::endl;
+        std::cout << "    - RSALOR (C++ backend): compute sequences weights." << std::endl;
     }
     this->weights = this->computeWeights();
-    this->Neff = std::accumulate(this->weights.begin(), this->weights.end(), 0.f);
-    if(this->verbose) {
-        std::cout << "    * Neff:  " << this->Neff << std::endl;
-    }
 }
 
 
@@ -198,5 +191,5 @@ unsigned int MSA::get_length() {
 }
 
 float MSA::get_Neff() {
-    return this->Neff;
+    return std::accumulate(this->weights.begin(), this->weights.end(), 0.f);
 }
