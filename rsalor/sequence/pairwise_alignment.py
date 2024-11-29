@@ -35,10 +35,10 @@ class PairwiseAlignment:
             sequence2: Sequence,
             match_score: float=1.0,
             mismatch_score: float=-5.0,
-            open_gap_score: float=-2.2,
-            extend_gap_score: float=-0.3,
-            tail_gap_score: float=-0.3,
-            query_multiplier: float=1.0,
+            open_gap_score: float=-4.0,
+            extend_gap_score: float=-3.0,
+            tail_gap_score: float=-1.0,
+            query_multiplier: float=1.5,
         ):
 
         # Length Guardians
@@ -133,19 +133,27 @@ class PairwiseAlignment:
         return len(self.align1)
     
     def __str__(self) -> str:
-        return f"PairwiseAlignment('{self.sequence1.name}' vs. '{self.sequence2.name}', l={len(self)}, [{self.match} |, {self.gap} -, {self.mismatch} x])"
+        return f"PairwiseAlignment('{self.sequence1.name}' vs. '{self.sequence2.name}', l={len(self)}, ({self.match} |, {self.gap} -, {self.mismatch} x))"
     
-    def show(self, n_lines: int=120) -> "PairwiseAlignment":
+    def show(self, n_lines: int=120, only_critical_chunks: bool=False) -> "PairwiseAlignment":
         """Show the complete alignemnt."""
         assert n_lines > 0, f"ERROR in {self}.show(): n_lines={n_lines} should be > 0."
         print(self)
         l = len(self)
         i = 0
         while i < l:
-            print(f"{i+1} - {min(i+n_lines, l)}")
-            print(self.align1[i:i+n_lines])
-            print(self.comparator[i:i+n_lines])
-            print(self.align2[i:i+n_lines])
+            range_line = f"{i+1} - {min(i+n_lines, l)}"
+            ali1_line = self.align1[i:i+n_lines]
+            comp_line = self.comparator[i:i+n_lines]
+            ali2_line = self.align2[i:i+n_lines]
+            if only_critical_chunks:
+                comp_line = comp_line.replace(self.MISMATCH_CHAR, f"\033[91m{self.MISMATCH_CHAR}\033[0m")
+                ali2_line = ali2_line.replace(self.GAP_CHAR, f"\033[91m{self.GAP_CHAR}\033[0m")
+            if not only_critical_chunks or self.MISMATCH_CHAR in comp_line or self.GAP_CHAR in ali2_line:
+                print(range_line)
+                print(ali1_line)
+                print(comp_line)
+                print(ali2_line)
             i += n_lines
         return self
 

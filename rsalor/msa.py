@@ -13,6 +13,7 @@ from rsalor.sequence import PairwiseAlignment
 from rsalor.structure import Structure
 from rsalor.weights import compute_weights, read_weights, write_weights
 from rsalor.utils import CSV
+from rsalor.utils import Logger
 
 
 # Main -------------------------------------------------------------------------
@@ -23,13 +24,6 @@ class MSA:
 
 
     # Constants ----------------------------------------------------------------
-
-    # Logger
-    LOG_STEP = "\033[92m" + "RSALOR" + "\033[0m"
-    LOG_WARNING = "\033[93m" + "WARNING" + "\033[0m"
-    LOR_ERROR = "\033[91m" + "ERROR" + "\033[0m"
-
-    # State constants
     N_STATES = len(AminoAcid.ONE_2_ID) + 1
     GAP_ID = N_STATES - 1
     GAP_CHAR = AminoAcid.GAP_ONE
@@ -58,6 +52,7 @@ class MSA:
             trimmed_msa_path: Union[None, str]=None,
             allow_msa_overwrite: bool=False,
             verbose: bool=False,
+            disable_warnings: bool=False,
             name: Union[None, str]=None,
         ):
         """MSA: collects and computes all data from the MSA and combines with structural information from the PDB.
@@ -83,10 +78,12 @@ class MSA:
         trimmed_msa_path (Union[None, str]=None):       set to save the trimmed + non-redundent MSA file (leave empty to ignore)
         allow_msa_overwrite (bool=False):               allow to overwrite initial MSA file with the trimmed + non-redundent MSA file
         verbose (bool=False):                           log execution steps
+        disable_warnings (bool=False)                   disable logging of Warnings
         name (Union[None, str]=None):                   overwrite name of the MSA instance (for logging)
         """
 
         # MSA path Guardians
+        self.name = "" # Required for logs, so we set directly.
         self._verify_input_msa_path(msa_path)
 
         # Fill basic properties
@@ -111,6 +108,8 @@ class MSA:
         self.trimmed_msa_path: Union[None, str] = trimmed_msa_path
         self.allow_msa_overwrite: bool = allow_msa_overwrite
         self.verbose: bool = verbose
+        self.disable_warnings: bool = disable_warnings
+        self.logger = Logger(verbose, disable_warnings, step_prefix="RSALOR", warning_note=f" in {self}", error_note=f" in {self}")
 
         # Init structure (if pdb_path is specified)
         self._init_structure()
@@ -123,9 +122,8 @@ class MSA:
 
         # Save trimmed MSA (if trimmed_msa_path is specified)
         if self.trimmed_msa_path is not None:
-            if self.verbose:
-                print(f"{self.LOG_STEP}: save trimmed MSA (without target sequence gaps and non-std AAs, without redundent sequences) to a file.")
-                print(f" * trimmed_msa_path: '{trimmed_msa_path}'")
+            self.logger.step("save trimmed MSA (without target sequence gaps and non-std AAs, without redundent sequences) to a file.")
+            self.logger.log(f" * trimmed_msa_path: '{trimmed_msa_path}'")
             self._verify_trimmed_seq_path()
             self.write(trimmed_msa_path)
 
@@ -143,22 +141,21 @@ class MSA:
         # Case: pdb_path is None -> just log some warnings and continue
         if self.pdb_path is None:
             if self.chain is not None:
-                warning_log = f"{self.LOG_WARNING} in {self}: pdb_path is not set, so structure and RSA are ignored."
+                warning_log = "pdb_path is not set, so structure and RSA are ignored."
                 warning_log += f"   However chain is set to '{self.chain}'."
                 warning_log += f"   Please specify pdb_path to consider structure and RSA."
-                print(warning_log)
+                self.logger.warning(warning_log)
             if self.rsa_solver_path is not None:
-                warning_log = f"{self.LOG_WARNING} in {self}: pdb_path is not set, so structure and RSA are ignored."
+                warning_log = "pdb_path is not set, so structure and RSA are ignored."
                 warning_log += f"   However rsa_solver_path is set to '{self.rsa_solver_path}'."
                 warning_log += f"   Please specify pdb_path to consider structure and RSA."
-                print(warning_log)
+                self.logger.warning(warning_log)
             self.structure = None
             return None
         
         # Set Structure
-        if self.verbose:
-            print(f"{self.LOG_STEP}: parse PDB structure '{os.path.basename(self.pdb_path)}' (chain '{self.chain}') and compute RSA with DSSP or MuSiC.")
-        assert self.chain is not None, f"{self.LOR_ERROR} in {self}: pdb_path='{self.pdb_path}' is set, so please set also the PDB chain to consider."
+        self.logger.step(f"parse PDB structure '{os.path.basename(self.pdb_path)}' (chain '{self.chain}') and compute RSA with DSSP or MuSiC.")
+        assert self.chain is not None, f"{self.error_prefix}: pdb_path='{self.pdb_path}' is set, so please set also the PDB chain to consider."
         self.structure = Structure(
             self.pdb_path,
             self.chain,
@@ -168,12 +165,14 @@ class MSA:
             verbose=self.verbose,
         )
 
+        # Non assigned RSA warnings
+        self._verify_rsa_values()
+
     def _read_sequences(self) -> None:
         """Read sequences from MSA FASTA file."""
         
         # Read MSA
-        if self.verbose:
-            print(f"{self.LOG_STEP}: read sequences from MSA file '{self.msa_filename}'.")
+        self.logger.step(f"read sequences from MSA file '{self.msa_filename}'.")
 
         # Inspect target sequence for gaps and non-standard AAs
         # Also set up alignment between MSA and trimmed MSA positions
@@ -203,16 +202,16 @@ class MSA:
         do_trimming = n_remove > 0
         n_keep = len(target_sequence) - n_remove
         if n_keep < 1:
-            raise ValueError(f"{self.LOR_ERROR} in {self}: target sequence does not contain any standard amino acid residues.")
+            raise ValueError(f"{self.error_prefix}: target sequence does not contain any standard amino acid residues.")
         if do_trimming:
-            print(f"{self.LOG_WARNING} in {self}: target sequence contains some gaps or non-standard amino acids: MSA will be trimmed: {len(target_sequence)} -> {n_keep} (num trimmed positions: {n_remove}).")
+            self.logger.warning(f"target sequence contains some gaps or non-standard amino acids: MSA will be trimmed: {len(target_sequence)} -> {n_keep} (num trimmed positions: {n_remove}).")
         if n_gaps > 0:
-            print(f"{self.LOG_WARNING} in {self}: target sequence contains {n_gaps} gaps -> those positions will be trimmed.")
+            self.logger.warning("target sequence contains {n_gaps} gaps -> those positions will be trimmed.")
         if len(non_standard) > 0:
             non_std_str = "".join(non_standard)
             if len(non_std_str) > 10:
                 non_std_str = non_std_str[0:7] + "..."
-            print(f"{self.LOG_WARNING} in {self}: target sequence contains {len(non_standard)} non-standard amino acids ('{non_std_str}') -> those positions will be trimmed.")
+            self.logger.warning(f"target sequence contains {len(non_standard)} non-standard amino acids ('{non_std_str}') -> those positions will be trimmed.")
 
         # Read sequences from file
         self.sequences: List[Sequence] = []
@@ -243,18 +242,19 @@ class MSA:
                     sequences_set.add(sequence_str)
                 sequence = fasta_stream.get_next()
                 n_tot_sequences += 1
-            if self.verbose:
-                print(f" * remove redundant sequences  : {n_tot_sequences} -> {len(self.sequences)}")
+            self.logger.log(f" * remove redundant sequences  : {n_tot_sequences} -> {len(self.sequences)}")
         fasta_stream.close()
 
         # Verify MSA consisency
-        assert self.depth > 1, f"{self.LOR_ERROR} in {self}: MSA contains no or only 1 sequence."
-        assert self.length > 0, f"{self.LOR_ERROR} in {self}: MSA target (first) sequence is of length 0."
+        assert self.depth > 1, f"{self.error_prefix}: MSA contains no or only 1 sequence."
+        assert self.length > 0, f"{self.error_prefix}: MSA target (first) sequence is of length 0."
 
         # Log
-        if self.verbose:
-            print(f" * MSA length (tgt seq length) : {len(self.target_sequence)}")
-            print(f" * MSA depth (num sequences)   : {len(self.sequences)}")
+        self.logger.log(f" * MSA length (tgt seq length) : {len(self.target_sequence)}")
+        self.logger.log(f" * MSA depth (num sequences)   : {len(self.sequences)}")
+
+        # Set target sequence name
+        self.target_sequence.name += " (trimmed MSA)"
 
     def _align_structure_to_sequence(self) -> None:
         """Align residues position between PDB sequence and target sequence of the MSA."""
@@ -269,14 +269,14 @@ class MSA:
             return None
         
         # Log
-        if self.verbose:
-            print(f"{self.LOG_STEP}: align Structure (from PDB) and Sequence (from MSA).")
+        self.logger.step("align Structure (from PDB) and Sequence (from MSA).")
         
         # Init alignment
         self.str_seq_align = PairwiseAlignment(self.structure.sequence, self.target_sequence)
         
         # Map positions
         i_pdb, i_fasta_trimmed = 0, 0
+        n_no_rsa, n_no_residue = 0, 0
         for aa_pdb, aa_fasta_trimmed in zip(self.str_seq_align.align1, self.str_seq_align.align2):
             if aa_pdb != self.GAP_CHAR and aa_fasta_trimmed != self.GAP_CHAR:
                 residue = self.structure.chain_residues[i_pdb]
@@ -284,9 +284,13 @@ class MSA:
                 self.pdb_to_fasta_trimmed[residue.resid] = fasta_trimmed_id
                 self.fasta_trimmed_to_pdb[fasta_trimmed_id] = residue.resid
                 self.rsa_array[i_fasta_trimmed] = residue.rsa
+                if residue.rsa is None:
+                    n_no_rsa += 1
             if aa_pdb != self.GAP_CHAR:
                 i_pdb += 1
             if aa_fasta_trimmed != self.GAP_CHAR:
+                if aa_pdb == self.GAP_CHAR: # Position in MSA but not is PDB
+                    n_no_residue += 1
                 i_fasta_trimmed += 1
 
         # Set RSA factor
@@ -295,9 +299,23 @@ class MSA:
                 self.rsa_factor_array[i] = (1.0 - min(rsa, 100.0) / 100.0)
 
         # Log
-        if self.verbose:
-            n_assigned = len([rsa for rsa in self.rsa_array if rsa is not None])
-            print(f" * {n_assigned} / {len(self.rsa_array)} assigned RSA values for positions in trimmed MSA")
+        n_assigned = len([rsa for rsa in self.rsa_array if rsa is not None])
+        self.logger.log(f" * {n_assigned} / {len(self.rsa_array)} assigned RSA values for positions in trimmed MSA")
+        
+        # Alignment Warnings
+        if n_no_residue:
+            self.logger.warning(f"{n_no_residue} / {len(self.rsa_array)} positions in trimmed MSA with no corresponding residues in PDB structure.")
+        if n_no_rsa:
+            self.logger.warning(f"{n_no_rsa} / {len(self.rsa_array)} positions in trimmed MSA corresponding to PDB residues without assigned RSA.")
+        critical_alignment_warning = False
+        if self.str_seq_align.mismatch > 0:
+            critical_alignment_warning = True
+            self.logger.warning(f"{self.str_seq_align.mismatch} / {len(self.rsa_array)} mismatch between trimmed MSA and PDB.", critical=True)
+        if self.str_seq_align.internal_gap2 > 0:
+            critical_alignment_warning = True
+            self.logger.warning(f"{self.str_seq_align.internal_gap2} internal residues in the PDB do not correspond to a position in trimmed MSA.", critical=True)
+        if critical_alignment_warning and not self.disable_warnings:
+            self.str_seq_align.show(n_lines=80, only_critical_chunks=True)
 
     def _init_weights(self) -> None:
         """Initialize weights for all sequences of the MSA (using C++ backend or from a cache file)."""
@@ -313,24 +331,22 @@ class MSA:
 
         # Read from cached file case
         if self.weights_cache_path is not None and os.path.isfile(self.weights_cache_path):
-            if self.verbose:
-                print(f"{self.LOG_STEP}: read weights from cached file.")
-                print(f" * weights_cache_path: '{self.weights_cache_path}'")
+            self.logger.step("read weights from cached file.")
+            self.logger.log(f" * weights_cache_path: '{self.weights_cache_path}'")
             weights = read_weights(self.weights_cache_path)
             if len(weights) != len(self.sequences):
-                error_log = f"{self.LOR_ERROR} in {self}: read_weights(weights_cache_path='{self.weights_cache_path}'): "
+                error_log = f"{self.error_prefix}: read_weights(weights_cache_path='{self.weights_cache_path}'): "
                 error_log += f"\nnumber of parsed weights ({len(weights)}) does not match number of sequences ({len(self.sequences)}) in MSA."
                 error_log += f"\n   * Please remove current weights_cache file and re-run weights or set weights_cache_path to None."
                 raise ValueError(error_log)
         
         # Re-compute case weights case
         else:
-            if self.verbose:
-                print(f"{self.LOG_STEP}: compute weights using C++ backend.")
-                dt = (0.0000000001 * self.length * self.depth**2) / self.num_threads
-                dt_str = time_str(dt)
-                print(f" * seqid (to compute clusters) : {self.seqid}")
-                print(f" * expected computation-time   : {dt_str} (with {self.num_threads} CPUs)")
+            self.logger.step("compute weights using C++ backend.")
+            dt = (0.0000000001 * self.length * self.depth**2) / self.num_threads
+            dt_str = time_str(dt)
+            self.logger.log(f" * seqid (to compute clusters) : {self.seqid}")
+            self.logger.log(f" * expected computation-time   : {dt_str} (with {self.num_threads} CPUs)")
 
             # Case when processed+trimmed MSA in saved 
             if self.trimmed_msa_path is not None:
@@ -360,7 +376,7 @@ class MSA:
 
             # Verify coherence of computed weights
             if len(weights) != len(self.sequences):
-                error_log = f"{self.LOR_ERROR} in {self}: compute_weights(): "
+                error_log = f"{self.error_prefix}: compute_weights(): "
                 error_log += f"number of computed weights ({len(weights)}) does not match number of sequences ({len(self.sequences)}) in MSA."
                 raise ValueError(error_log)
 
@@ -370,22 +386,19 @@ class MSA:
 
         # Set Neff
         self.Neff: float = np.sum(weights)
-        if self.verbose:
-            print(f" * Neff (sum of weights): {self.Neff:.2f}")
+        self.logger.log(f" * Neff (sum of weights): {self.Neff:.2f}")
 
         # Save weights in cache file if required
         if self.weights_cache_path is not None and not os.path.isfile(self.weights_cache_path):
-            if self.verbose:
-                print(f"{self.LOG_STEP}: save computed weights to file '{self.weights_cache_path}'.")
-                print(f" * weights_cache_path: '{self.weights_cache_path}'")
+            self.logger.step(f"save computed weights to file '{self.weights_cache_path}'.")
+            self.logger.log(f" * weights_cache_path: '{self.weights_cache_path}'")
             write_weights(weights, self.weights_cache_path)
         
     def _init_counts(self) -> None:
         """Initialize residues counts and frequences from the MSA."""
 
         # Log
-        if self.verbose:
-            print(f"{self.LOG_STEP}: initialize residues counts and frequencies.")
+        self.logger.step("initialize residues counts and frequencies.")
 
         # Counts
         self.counts = np.zeros((self.length, self.N_STATES), float)
@@ -417,15 +430,14 @@ class MSA:
         """
 
         # Log
-        if self.verbose:
-            print(f"{self.LOG_STEP}: compute regularized frequencies.")
-            print(f" * theta_regularization : {theta_regularization}")
-            print(f" * n_regularization     : {n_regularization}")
+        self.logger.step("compute regularized frequencies.")
+        self.logger.log(f" * theta_regularization : {theta_regularization}")
+        self.logger.log(f" * n_regularization     : {n_regularization}")
 
         # Regularization Guardians
-        assert theta_regularization >= 0.0, f"{self.LOR_ERROR} in {self}: theta_regularization={theta_regularization} should be positive."
-        assert n_regularization >= 0.0, f"{self.LOR_ERROR} in {self}: n_regularization={n_regularization} sould be positive."
-        assert theta_regularization > 0.0 or n_regularization > 0.0, f"{self.LOR_ERROR} in {self}: both theta_regularization and n_regularization can not be zero to avoid divering values."
+        assert theta_regularization >= 0.0, f"{self.error_prefix}: theta_regularization={theta_regularization} should be positive."
+        assert n_regularization >= 0.0, f"{self.error_prefix}: n_regularization={n_regularization} sould be positive."
+        assert theta_regularization > 0.0 or n_regularization > 0.0, f"{self.error_prefix}: both theta_regularization and n_regularization can not be zero to avoid divering values."
 
         # Set regularization properties
         self.theta_regularization = theta_regularization
@@ -474,6 +486,10 @@ class MSA:
         """Number of sequences in the MSA."""
         return len(self.sequences)
     
+    @property
+    def error_prefix(self) -> str:
+        """Return error in MSA prefix."""
+        return f"\033[91mERROR\033[0m in {self}"
 
     # Scores (such as LOR) Properties ------------------------------------------
     def get_frequency(self, residue_id: int, amino_acid_one_char: str, regularized: bool=True):
@@ -518,7 +534,7 @@ class MSA:
 
         # Set metric
         ALLOWED_METRICS = ["LOR", "LR"]
-        assert metric in ALLOWED_METRICS, f"{self.LOR_ERROR} in {self}.eval_mutations(): metric='{metric}' should be in {ALLOWED_METRICS}."
+        assert metric in ALLOWED_METRICS, f"{self.error_prefix}.eval_mutations(): metric='{metric}' should be in {ALLOWED_METRICS}."
         if metric == "LOR":
             E_matrix = self.LOR
         else:
@@ -526,14 +542,14 @@ class MSA:
 
         # Uniformize mutations to 'fasta_trimmed' reference
         ALLOWED_MUTATIONS_TYPES = ["fasta_trimmed", "fasta", "pdb"]
-        assert mutations_reference in ALLOWED_MUTATIONS_TYPES, f"{self.LOR_ERROR} in {self}: mutations_reference='{mutations_reference}' sould be in {ALLOWED_MUTATIONS_TYPES}."
+        assert mutations_reference in ALLOWED_MUTATIONS_TYPES, f"{self.error_prefix}: mutations_reference='{mutations_reference}' sould be in {ALLOWED_MUTATIONS_TYPES}."
         if mutations_reference == "fasta" or mutations_reference == "pdb":
             residues_map = self.fasta_to_fasta_trimmed if mutations_reference == "fasta" else self.pdb_to_fasta_trimmed
             mutations_list_converted = []
             for mutation in mutations_list:
                 wt, resid, mt = mutation[0], mutation[1:-1], mutation[-1]
                 if resid not in residues_map:
-                    error_log = f"{self.LOR_ERROR} in {self}.eval_mutations():"
+                    error_log = f"{self.error_prefix}.eval_mutations():"
                     error_log += f"\nMutation '{mutation}' can not be converted from '{mutations_reference}' reference to 'fasta_trimmed' reference."
                     error_log += f"\n - residue '{resid}' may be outside of the range of the MSA"
                     if mutations_reference == "pdb":
@@ -550,7 +566,7 @@ class MSA:
         # Compute mutations
         dE_arr = []
         for i, mutation in enumerate(mutations_list_reference):
-            assert 1 <= mutation.position <= self.length, f"{self.LOR_ERROR} in {self}.eval_mutations(): position of mutation='{mutation}' is out of range of target sequence of the MSA."
+            assert 1 <= mutation.position <= self.length, f"{self.error_prefix}.eval_mutations(): position of mutation='{mutation}' is out of range of target sequence of the MSA."
             if not disable_wt_warning:
                 aa_target = self.target_sequence[mutation.position-1]
                 aa_mutation = mutation.wt_aa.one
@@ -559,7 +575,7 @@ class MSA:
                     mutation_description = f"'{mutation}'"
                     if mutations_reference != "fasta_trimmed":
                         mutation_description = f"{mutation_description} ('{mutations_list[i]}' in '{mutations_reference}' reference)"
-                    print(f"{self.LOG_WARNING} in {self}.eval_mutations(): mutation {mutation_description}: wt-aa does not match target sequence aa '{aa_target}'.")
+                    self.logger.warning(f"eval_mutations(): mutation {mutation_description}: wt-aa does not match target sequence aa '{aa_target}'.")
             dE = E_matrix[mutation.position-1, mutation.wt_aa.id] - E_matrix[mutation.position-1, mutation.mt_aa.id]
             dE_arr.append(dE)
 
@@ -587,8 +603,7 @@ class MSA:
         """
 
         # Log
-        if self.verbose:
-            print(f"{self.LOG_STEP}: compute scores for all single-site mutations.")
+        self.logger.step("compute scores for all single-site mutations.")
 
         # Compute scores for each single site mutation
         all_aas = AminoAcid.get_all()
@@ -673,9 +688,8 @@ class MSA:
         scores = self.get_scores(round_digit)
 
         # Log
-        if self.verbose:
-            print(f"{self.LOG_STEP}: save scores to a file.")
-            print(f" * scores_path: '{scores_path}'")
+        self.logger.step("save scores to a file.")
+        self.logger.log(f" * scores_path: '{scores_path}'")
 
         # Format in CSV
         scores_properties = list(scores[0].keys())
@@ -706,8 +720,8 @@ class MSA:
 
         # Guardians
         msa_path = os.path.abspath(msa_path)
-        assert os.path.isdir(os.path.dirname(msa_path)), f"{self.LOR_ERROR} in {self}.write(): directory of msa_path='{msa_path}' does not exists."
-        assert msa_path.endswith(".fasta"), f"{self.LOR_ERROR} in {self}.write(): msa_path='{msa_path}' should end with '.fasta'."
+        assert os.path.isdir(os.path.dirname(msa_path)), f"{self.error_prefix}.write(): directory of msa_path='{msa_path}' does not exists."
+        assert msa_path.endswith(".fasta"), f"{self.error_prefix}.write(): msa_path='{msa_path}' should end with '.fasta'."
 
         # Write
         with open(msa_path, "w") as fs:
@@ -722,11 +736,11 @@ class MSA:
         """For correct format and existance of input msa_path."""
 
         # Existance
-        #assert os.path.exists(msa_path), f"{self.LOR_ERROR} in MSA(): msa_path='{msa_path}' files does not exist."
+        assert os.path.exists(msa_path), f"{self.error_prefix}: msa_path='{msa_path}' files does not exist."
 
         # FASTA format
         if not msa_path.endswith(".fasta"):
-            error_log = f"{self.LOR_ERROR} in MSA(): msa_path='{msa_path}' should end with '.fasta'."
+            error_log = f"{self.error_prefix}: msa_path='{msa_path}' should end with '.fasta'."
             # Hint for '.ali' format
             if msa_path.endswith(".ali"):
                 error_log += f"\n * msa_path: '{msa_path}'"
@@ -742,18 +756,34 @@ class MSA:
             seq_str = sequence.sequence
             if len(seq_str) > 40:
                 seq_str = seq_str[0:37] + "..."
-            error_log = f"{self.LOR_ERROR} in {self}._read_sequences(): msa_path='{self.msa_path}':"
+            error_log = f"{self.error_prefix}._read_sequences(): msa_path='{self.msa_path}':"
             error_log += f"\n -> length of sequence [{i+1}] l={len(sequence)} ('{seq_str}') does not match length of target sequence l={target_length}."
             raise ValueError(error_log)
 
     def _verify_trimmed_seq_path(self) -> None:
         """For coherence of trimmed_msa_path and for safety to not overwrite initial input MSA."""
         trimmed_msa_path = str(os.path.abspath(self.trimmed_msa_path))
-        assert os.path.isdir(os.path.dirname(trimmed_msa_path)), f"{self.LOR_ERROR} in {self}: directory of trimmed_msa_path='{trimmed_msa_path}' does not exists."
-        assert trimmed_msa_path.endswith(".fasta"), f"{self.LOR_ERROR} in {self}: trimmed_msa_path='{trimmed_msa_path}' should end with '.fasta'."
+        assert os.path.isdir(os.path.dirname(trimmed_msa_path)), f"{self.error_prefix}: directory of trimmed_msa_path='{trimmed_msa_path}' does not exists."
+        assert trimmed_msa_path.endswith(".fasta"), f"{self.error_prefix}: trimmed_msa_path='{trimmed_msa_path}' should end with '.fasta'."
         if os.path.normpath(self.msa_path) == os.path.normpath(trimmed_msa_path) and not self.allow_msa_overwrite:
-            error_log = f"{self.LOR_ERROR} in {self}: trimmed_msa_path='{trimmed_msa_path}' is same as input MSA path."
+            error_log = f"{self.error_prefix}: trimmed_msa_path='{trimmed_msa_path}' is same as input MSA path."
             error_log == "\nIf trimmed_msa_path is set, the trimmed MSA (without target sequence gaps and non-std AAs) will be saved to this path."
             error_log += "\nWARNING: This operation will overwrite initial input MSA file."
             error_log += "\nTo continue, set argument 'allow_msa_overwrite' to True."
             raise ValueError(error_log)
+        
+    def _verify_rsa_values(self) -> None:
+        """Warnings for non-assigned RSA residues."""
+        norsa_std, norsa_non_std = 0, 0
+        for residue in self.structure.chain_residues:
+            if residue.rsa is None:
+                if residue.amino_acid.is_standard():
+                    norsa_std += 1
+                else:
+                    norsa_non_std += 1
+        norsa = norsa_std + norsa_non_std
+        if norsa > 0:
+            warning_log = f"{norsa} / {len(self.structure.chain_residues)} residues with no assigned RSA values ({norsa_std} std and {norsa_non_std} non-std) in PDB target chain '{self.chain}'."
+            warning_log += "\n   -> This can be caused by non-standard AAs or missing atoms."
+            warning_log += "\n   -> For optimal RSA estimations, we highly recommend to 'repair' the PDB and standardize AAs."
+            self.logger.warning(warning_log)

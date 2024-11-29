@@ -65,7 +65,7 @@ class Structure:
         self._parse_structure()
 
         # Set sequence
-        self.sequence = Sequence(f"{self.name} (ATOM-lines)", "".join(res.amino_acid.one for res in self.chain_residues))
+        self.sequence = Sequence(f"{self.name} (PDB, ATOM-lines)", "".join(res.amino_acid.one for res in self.chain_residues))
 
         # Assign RSA
         solver: RSASolver = self.RSA_SOLVERS[rsa_solver]
@@ -135,7 +135,7 @@ class Structure:
                 elif prefix == "MODEL ":
                     model_counter += 1
                     if model_counter > 1:
-                        print(f"WARNING in {self}: PDB contains multiple models, but only model 1 will be considered.")
+                        #print(f"WARNING in {self}: PDB contains multiple models, but only model 1 will be considered.")
                         break
 
                 # Manage closed chains: ATOMS that appears after the chain is closed are not part of the protein chain
