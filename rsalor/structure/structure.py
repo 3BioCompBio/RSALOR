@@ -151,8 +151,8 @@ class Structure:
 
         # No target chain error
         if len(self.chain_residues) == 0:
-            print(f"ERROR in {self}._parse_structure():")
-            print(f" * pdb_path: '{self.pdb_path}'")
-            print(f" * num total residues: {len(self.residues)}")
-            print(f" * existing chains: {list(set([res.chain for res in self.residues]))}")
-            raise ValueError(f"ERROR in {self}._parse_structure(): target chain '{self.chain}' not found in PDB file.")
+            error_log = f"ERROR in {self}._parse_structure(): target chain '{self.chain}' not found in PDB file."
+            error_log += f"\n * pdb_path: '{self.pdb_path}'"
+            error_log += f"\n * num total residues: {len(self.residues)}"
+            error_log += f"\n * existing chains: {list(set([res.chain for res in self.residues]))}"
+            raise ValueError(error_log)

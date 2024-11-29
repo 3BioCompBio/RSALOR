@@ -34,11 +34,11 @@ class PairwiseAlignment:
             sequence1: Sequence,
             sequence2: Sequence,
             match_score: float=1.0,
-            mismatch_score: float=-5.0,
-            open_gap_score: float=-2.0,
-            extend_gap_score: float=-1.5,
-            tail_gap_score: float=-1.0,
-            query_multiplier: float=2.0,
+            mismatch_score: float=-3.0,
+            open_gap_score: float=-2.5,
+            extend_gap_score: float=-2.0,
+            tail_gap_score: float=-2.0,
+            query_insertion_multiplier: float=3.0,
         ):
 
         # Length Guardians
@@ -67,12 +67,12 @@ class PairwiseAlignment:
         self.aligner.target_right_extend_gap_score = tail_gap_score
         self.aligner.target_left_open_gap_score = tail_gap_score
         self.aligner.target_left_extend_gap_score = tail_gap_score
-        self.aligner.query_internal_open_gap_score = open_gap_score * query_multiplier
-        self.aligner.query_internal_extend_gap_score = extend_gap_score * query_multiplier
-        self.aligner.query_left_open_gap_score = tail_gap_score * query_multiplier
-        self.aligner.query_left_extend_gap_score = tail_gap_score * query_multiplier
-        self.aligner.query_right_open_gap_score = tail_gap_score * query_multiplier
-        self.aligner.query_right_extend_gap_score = tail_gap_score * query_multiplier
+        self.aligner.query_internal_open_gap_score = open_gap_score * query_insertion_multiplier
+        self.aligner.query_internal_extend_gap_score = extend_gap_score * query_insertion_multiplier
+        self.aligner.query_left_open_gap_score = tail_gap_score
+        self.aligner.query_left_extend_gap_score = tail_gap_score
+        self.aligner.query_right_open_gap_score = tail_gap_score
+        self.aligner.query_right_extend_gap_score = tail_gap_score
 
         # Align
         alignments = self.aligner.align(self.sequence1.sequence, self.sequence2.sequence)
