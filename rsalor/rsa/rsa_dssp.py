@@ -119,7 +119,7 @@ NOTE: you can still use the RSALOR package without DSSP if you only want LOR val
 
         # Parse PDB with BioPython
         pdb_name = os.path.basename(pdb_path).removesuffix(".pdb")
-        structure = PDBParser().get_structure(pdb_name, pdb_path)
+        structure = PDBParser(QUIET=True).get_structure(pdb_name, pdb_path)
         model = structure[0]
 
         # Run DSSP
