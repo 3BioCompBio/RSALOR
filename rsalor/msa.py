@@ -1,7 +1,7 @@
 
 # Imports ----------------------------------------------------------------------
 import os.path
-from typing import Union, List, Dict, Literal
+from typing import Union, List, Dict, Literal, Callable
 import tempfile
 import numpy as np
 from rsalor.utils import time_str
@@ -293,14 +293,12 @@ class MSA:
                     n_no_residue += 1
                 i_fasta_trimmed += 1
 
-        # Set RSA factor
-        for i, rsa in enumerate(self.rsa_array):
-            if rsa is not None:
-                self.rsa_factor_array[i] = (1.0 - min(rsa, 100.0) / 100.0)
-
         # Log
         n_assigned = len([rsa for rsa in self.rsa_array if rsa is not None])
         self.logger.log(f" * {n_assigned} / {len(self.rsa_array)} assigned RSA values for positions in trimmed MSA")
+
+        # Set RSA factor
+        self.set_rsa_factor()
         
         # Alignment Warnings
         if n_no_residue:
@@ -316,6 +314,20 @@ class MSA:
             self.logger.warning(f"{self.str_seq_align.internal_gap2} internal residues in the PDB do not correspond to a position in trimmed MSA.", critical=True)
         if critical_alignment_warning and not self.disable_warnings:
             self.str_seq_align.show(n_lines=80, only_critical_chunks=True)
+
+    def set_rsa_factor(self, rsa_factor_function: Union[Callable[[float], float], None]=None) -> None:
+
+        # Set default function
+        if rsa_factor_function is None:
+            rsa_factor_function = self.inverse_rsa
+
+        # Log
+        self.logger.step(f"set RSA factor (RSA -> w(RSA) with w='{rsa_factor_function.__name__}').")
+
+        # Set RSA factor
+        for i, rsa in enumerate(self.rsa_array):
+            if rsa is not None:
+                self.rsa_factor_array[i] = (1.0 - min(rsa, 100.0) / 100.0)
 
     def _init_weights(self) -> None:
         """Initialize weights for all sequences of the MSA (using C++ backend or from a cache file)."""
@@ -490,6 +502,10 @@ class MSA:
     def error_prefix(self) -> str:
         """Return error in MSA prefix."""
         return f"\033[91mERROR\033[0m in {self}"
+    
+    @staticmethod
+    def inverse_rsa(rsa_value: float) -> float:
+        return 1.0 - min(rsa_value, 100.0) / 100.0
 
     # Scores (such as LOR) Properties ------------------------------------------
     def get_frequency(self, residue_id: int, amino_acid_one_char: str, regularized: bool=True):

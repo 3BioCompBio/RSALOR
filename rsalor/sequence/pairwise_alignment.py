@@ -35,10 +35,10 @@ class PairwiseAlignment:
             sequence2: Sequence,
             match_score: float=1.0,
             mismatch_score: float=-5.0,
-            open_gap_score: float=-4.0,
-            extend_gap_score: float=-3.0,
+            open_gap_score: float=-2.0,
+            extend_gap_score: float=-1.5,
             tail_gap_score: float=-1.0,
-            query_multiplier: float=1.5,
+            query_multiplier: float=2.0,
         ):
 
         # Length Guardians
