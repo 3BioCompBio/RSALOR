@@ -206,7 +206,7 @@ class MSA:
         if do_trimming:
             self.logger.warning(f"target sequence contains some gaps or non-standard amino acids: MSA will be trimmed: {len(target_sequence)} -> {n_keep} (num trimmed positions: {n_remove}).")
         if n_gaps > 0:
-            self.logger.warning("target sequence contains {n_gaps} gaps -> those positions will be trimmed.")
+            self.logger.warning(f"target sequence contains {n_gaps} gaps -> those positions will be trimmed.")
         if len(non_standard) > 0:
             non_std_str = "".join(non_standard)
             if len(non_std_str) > 10:
