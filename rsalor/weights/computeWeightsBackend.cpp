@@ -25,6 +25,7 @@ extern "C" float* computeWeightsBackend(
     MSA msa(
         msa_path, 
         msa_len,
+        msa_depth,
         seqid,
         count_target_sequence,
         num_threads,

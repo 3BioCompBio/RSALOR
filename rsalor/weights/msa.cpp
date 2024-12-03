@@ -12,6 +12,7 @@
 MSA::MSA(
     const char* m_msa_path,
     unsigned int const m_msa_len,
+    unsigned int const m_msa_depth,
     float m_seqid,
     bool m_count_target_sequence,
     unsigned int m_num_threads,
@@ -19,6 +20,7 @@ MSA::MSA(
 ):
 msa_path(m_msa_path),
 msa_len(m_msa_len),
+msa_depth(m_msa_depth),
 seqid(m_seqid),
 count_target_sequence(m_count_target_sequence),
 num_threads(m_num_threads),
@@ -29,7 +31,6 @@ verbose(m_verbose)
         std::cout << "    - RSALOR (C++ backend): read sequences from file." << std::endl;
     }
     this->seqs_int_form = readSequences();
-    this->msa_depth = this->seqs_int_form.size();
 
     // Compute weights
     if(this->verbose) {
