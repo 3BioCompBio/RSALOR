@@ -224,6 +224,8 @@ class MSA:
                 self._verify_sequence_length(sequence, tgt_seq_len, n_tot_sequences)
                 if do_trimming:
                     sequence.trim(keep_position)
+                if len(sequence) == 0:
+                    continue
                 self.sequences.append(sequence)
                 sequence = fasta_stream.get_next()
                 n_tot_sequences += 1
@@ -236,6 +238,8 @@ class MSA:
                 self._verify_sequence_length(sequence, tgt_seq_len, n_tot_sequences)
                 if do_trimming:
                     sequence.trim(keep_position)
+                if len(sequence) == 0:
+                    continue
                 sequence_str = sequence.sequence
                 if sequence_str not in sequences_set:
                     self.sequences.append(sequence)
