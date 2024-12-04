@@ -359,7 +359,7 @@ class MSA:
         # Re-compute case weights case
         else:
             self.logger.step("compute weights using C++ backend.")
-            dt = (0.0000000001 * self.length * self.depth**2) / self.num_threads
+            dt = (0.00000000015 * self.length * self.depth**2) / self.num_threads
             dt_str = time_str(dt)
             self.logger.log(f" * seqid (to compute clusters) : {self.seqid}")
             self.logger.log(f" * expected computation-time   : {dt_str} (with {self.num_threads} CPUs)")

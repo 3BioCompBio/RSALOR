@@ -120,7 +120,11 @@ def read_weights(weights_path: str) -> List[float]:
             try:
                 weights.append(float(line))
             except:
-                raise ValueError(f"ERROR in read_weights(): failed to parse line {i+1}/{len(lines)} as a float.\n * weights_path='{weights_path}'\n * line='{line.replace('\n', '')}'")
+                line = line.replace('\n', '')
+                error_log = f"ERROR in read_weights(): failed to parse line {i+1} / {len(lines)} as a float."
+                error_log += f" * weights_path='{weights_path}'"
+                error_log += f" * line='{line}'"
+                raise ValueError(error_log)
     if len(weights) == 0:
         raise ValueError(f"ERROR in read_weights(): no parsable weights line found in weights_path='{weights_path}'.")
     return weights

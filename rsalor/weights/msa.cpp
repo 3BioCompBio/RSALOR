@@ -59,11 +59,8 @@ std::vector<std::vector<uint8_t>> MSA::readSequences()
     
     // Init
     std::vector<std::vector<uint8_t>> seqs_int_form;
-    //std::unordered_set<std::string> unique_sequences_set;
     std::ifstream msa_file_stream(this->msa_path);
     std::string current_line;
-    //int unique_seq_counter = 0;
-    //int seq_counter = 0;
 
     // Check file streaming
     if(msa_file_stream.fail()){
@@ -74,17 +71,12 @@ std::vector<std::vector<uint8_t>> MSA::readSequences()
     // Loop on lines of the file
     while(std::getline(msa_file_stream, current_line)){
         if(!current_line.empty() && current_line[0] != '>') { // Skip header and empty lines
-            //if (unique_sequences_set.find(current_line) == unique_sequences_set.end()) { // Skip redundent lines
             std::vector<uint8_t> current_seq_int;
             current_seq_int.reserve(this->msa_len); // optimize by putting the vector in the correct size which is known
             for (char c : current_line) {
                 current_seq_int.push_back(res_mapping.at(toupper(c)));
             }
             seqs_int_form.push_back(current_seq_int);
-            //unique_sequences_set.insert(current_line);
-            //++unique_seq_counter;
-            //}
-            //++seq_counter;
         }
     }
 
@@ -105,11 +97,10 @@ std::vector<float> MSA::computeWeights()
     */
 
     // Init
-    std::vector<float> weights(this->msa_depth);
+    std::vector<unsigned int> counts(this->msa_depth);
     for(unsigned int i = 0; i < this->msa_depth; ++i){
-        weights[i] = 1.f;
+        counts[i] = 1;
     }
-    unsigned int minimal_identical_residues = static_cast<unsigned int>(this->seqid * this->msa_len);
 
     // Remove first sequence from other weights computations by starting loop at 1
     unsigned int start_loop;
@@ -122,23 +113,30 @@ std::vector<float> MSA::computeWeights()
     // Multi-thread case
     #if defined(_OPENMP)
         auto num_threads = this->num_threads;
-        //#pragma omp parallel for num_threads(this->num_threads)
-        #pragma omp parallel for schedule(dynamic) num_threads(this->num_threads)
-        for (unsigned int i = start_loop; i < this->msa_depth; ++i) {
-            auto& seq_i = this->seqs_int_form[i];
-            unsigned int num_identical_residues;
-            for (unsigned int j = start_loop; j < this->msa_depth; ++j) {
-                if (j >= i) continue; // Skip redundant comparisons or use (i != j) to exclude diagonal
-                auto& seq_j = this->seqs_int_form[j];
-                num_identical_residues = 0;
-                for (unsigned int site = 0; site < this->msa_len; ++site) {
-                    num_identical_residues += seq_i[site] == seq_j[site];
-                }
-                if (num_identical_residues > minimal_identical_residues) {
-                    #pragma omp atomic
-                    weights[i] += 1.f;
-                    #pragma omp atomic
-                    weights[j] += 1.f;
+        #pragma omp parallel num_threads(this->num_threads)
+        {
+            #pragma omp for schedule(dynamic)
+            for (unsigned int i = start_loop; i < this->msa_depth; ++i) {
+                auto& seq_i = this->seqs_int_form[i];
+                unsigned int num_identical_residues;
+                unsigned int num_aligned_residues;
+                for (unsigned int j = start_loop; j < this->msa_depth; ++j) {
+                    if (j >= i) continue; // Skip redundant comparisons or use (i != j) to exclude diagonal
+                    auto& seq_j = this->seqs_int_form[j];
+                    num_identical_residues = 0;
+                    num_aligned_residues = 0;
+                    for (unsigned int site = 0; site < this->msa_len; ++site) {
+                        char char_i = seq_i[site];
+                        char char_j = seq_j[site];
+                        num_identical_residues += char_i == char_j;
+                        num_aligned_residues += (char_i != 20 || char_j != 20);
+                    }
+                    if (static_cast<float>(num_identical_residues) > this->seqid * static_cast<float>(num_aligned_residues)) {
+                        #pragma omp atomic
+                        ++counts[i];
+                        #pragma omp atomic
+                        ++counts[j];
+                    }
                 }
             }
         }
@@ -148,24 +146,30 @@ std::vector<float> MSA::computeWeights()
         for (unsigned int i = start_loop; i < this->msa_depth; ++i) {
             auto& seq_i = this->seqs_int_form[i];
             unsigned int num_identical_residues;
+            unsigned int num_aligned_residues;
             for (unsigned int j = start_loop; j < this->msa_depth; ++j) {
                 if (i >= j) continue; // Skip redundant comparisons or use (i != j) to exclude diagonal
                 auto& seq_j = this->seqs_int_form[j];
                 num_identical_residues = 0;
+                num_aligned_residues = 0;
                 for (unsigned int site = 0; site < this->msa_len; ++site) {
-                    num_identical_residues += seq_i[site] == seq_j[site];
+                    char char_i = seq_i[site];
+                    char char_j = seq_j[site];
+                    num_identical_residues += char_i == char_j;
+                    num_aligned_residues += (char_i != 20 || char_j != 20);
                 }
-                if (num_identical_residues > minimal_identical_residues) {
-                    weights[i] += 1.f;
-                    weights[j] += 1.f;
+                if (static_cast<float>(num_identical_residues) > this->seqid * static_cast<float>(num_aligned_residues)) {
+                    ++counts[i];
+                    ++counts[j];                    
                 }
             }
         }
     #endif
     
     // Convert counts to weights
-    for(unsigned int i = 0; i < this->msa_depth; ++i) {
-        weights[i] = 1.f/weights[i];
+    std::vector<float> weights(this->msa_depth);
+    for(unsigned int i = 0; i < this->msa_depth; ++i){
+        weights[i] = 1.f/ static_cast<float>(counts[i]);
     }
 
     // Remove first sequences weight (that was initally assigned to 1.0)
