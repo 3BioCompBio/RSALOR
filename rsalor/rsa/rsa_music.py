@@ -20,7 +20,7 @@ class RSAMuSiC(RSASolver):
 
     # Saved condidate paths to simplify execution on different machines
     CANDIDATES_PATHS = [
-        "music", "music_retro"                              # MuSiC executables
+        "music", "music_retro",                             # MuSiC executables
         "/home/Softs/MuSiC-4.1/music",                      # Nautilus and Santorin
     ]
 
