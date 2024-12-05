@@ -76,8 +76,13 @@ class PairwiseAlignment:
 
         # Align
         alignments = self.aligner.align(self.sequence1.sequence, self.sequence2.sequence)
-        self.align1: str = alignments[0][0]
-        self.align2: str = alignments[0][1]
+        try: # For Biopython versions 1.80 and later
+            self.align1: str = alignments[0][0]
+            self.align2: str = alignments[0][1]
+        except: # For legacy Biopython versions
+            alignment_str_list = str(alignments[0]).split()
+            self.align1: str = alignment_str_list[0]
+            self.align2: str = alignment_str_list[2]
         self.score: float = alignments.score
         
         # Alignment properties

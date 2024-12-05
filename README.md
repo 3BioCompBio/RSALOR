@@ -4,9 +4,9 @@
 
 ## Installation and dependencies
 
-biopython, numpy
+biopython (version 1.75 or later), numpy
 python 3.9 or later
-gcc compiler
+gcc compiler (and OpenMP)
 
 ## Usage
 
