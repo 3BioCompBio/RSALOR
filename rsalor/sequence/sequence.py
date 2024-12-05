@@ -73,8 +73,8 @@ class Sequence:
         return len([char for char in self.sequence if char != self.GAP_CHAR])
     
     def gap_ratio(self) -> float:
-        """Return gap ratio"""
-        return self.n_non_gaps() / len(self)
+        """Return gap ratio."""
+        return self.n_gaps() / len(self)
 
     def contains_gaps(self) -> bool:
         """Return is sequence contains gaps."""
