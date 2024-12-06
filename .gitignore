@@ -1,6 +1,8 @@
 __pycache__/
 build/
 src/
+tmp/
+fig/
 test_data/6acv_A_29-94_scores.csv
 *.so
 0_*
