@@ -1,5 +1,23 @@
+# Include python source files
+include *.py
+
+# Include files required for building C++ extension
+include rsalor/weights/include *.h
+include rsalor/weights *.cpp
+
+# Include the LICENSE and README files
+include LICENSE
+include README.md
+
+# Exclude files and directories that should not be in the package
 exclude src/*
 exclude fig/*
 exclude tmp/*
 exclude test_data/*
+global-exclude *.py[cod]
+global-exclude __pycache__/*
+global-exclude *.so
 
+# Exclude build artifacts
+global-exclude build/*
+global-exclude *.egg-info/*

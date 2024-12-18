@@ -1,6 +1,7 @@
 # Ignore cache build and config files
 __pycache__/
 build/
+rsalor.egg-info/
 
 # Ignore experiments
 src/
