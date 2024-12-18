@@ -1,0 +1,5 @@
+exclude src/*
+exclude fig/*
+exclude tmp/*
+exclude test_data/*
+
