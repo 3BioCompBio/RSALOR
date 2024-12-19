@@ -27,7 +27,7 @@ setup(
     version="1.1.0",
     author="Matsvei Tsishyn",
     author_email="matsvei.tsishyn@protonmail.com",
-    description="Combine Structural (Relative Solvent Accessibility) and Evolutionary (Log Odd Ratio extracted from the MSA) information to evaluate missence mutations of proteins.",
+    description="Combine structural (Relative Solvent Accessibility) and Evolutionary (Log Odd Ratio from MSA) data to evaluate missence mutations in proteins.",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     url="https://github.com/3BioCompBio/RSALOR",
