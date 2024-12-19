@@ -40,14 +40,15 @@ def compute_weights(
     assert num_threads > 0, f"ERROR in compute_weights('{msa_path}'): num_threads={num_threads} should be stricktly positive."
 
     # Find C++ computeWeightsBackend compiled executable file
-    backend_so_paths  = glob.glob(os.path.join(os.path.dirname(__file__), "lib_computeWeightsBackend*"))
+    path_prefix = os.path.join(os.path.dirname(__file__), "lib_computeWeightsBackend*")
+    backend_so_paths  = glob.glob(path_prefix)
     try:
         BACKEND_SO_PATH = backend_so_paths[0]
     except IndexError:
-        print("\nERROR in compute_weights(): ")
-        print("   * Unable to find C++ computeWeightsBackend '.so' library path.'")
-        print("   * Please install the pip package or compile the C++ code.")
-        raise ValueError("ERROR in compute_weights(): C++ computeWeightsBackend '.so' library path not found.")
+        error_log = "ERROR in compute_weights(): C++ computeWeightsBackend '.so' library path not found.\n"
+        error_log += f"   * Unable to find C++ computeWeightsBackend '.so' library path in '{path_prefix}'\n"
+        error_log += "   * Please install the pip package or compile the C++ code."
+        raise ValueError(error_log)
     
     # Init C++ bridge
     computeWeightsBackend = ctypes.CDLL(BACKEND_SO_PATH)
