@@ -38,7 +38,7 @@ class MSA:
             msa_path: str,
             pdb_path: Union[None, str]=None,
             chain: Union[None, str]=None,
-            rsa_solver: Literal["DSSP", "MuSiC"]="DSSP",
+            rsa_solver: Literal["biopython", "DSSP", "MuSiC"]="biopython",
             rsa_solver_path: Union[None, str]=None,
             rsa_cache_path: Union[None, str]=None,
             theta_regularization: float=0.01,
@@ -64,7 +64,7 @@ class MSA:
         msa_path (str):                                 path to MSA '.fasta' file
         pdb_path (Union[None, str]=None):               path to PDB '.pdb' file (leave empty to ignore structure)
         chain (Union[None, str]=None):                  chain of the PDB to consider
-        rsa_solver (Literal["DSSP", "MuSiC"]="DSSP")    solver to use to compute RSA
+        rsa_solver ('biopython'/'DSSP'/'MuSiC')         solver to use to compute RSA
         rsa_solver_path (Union[None, str]=None):        path to DSSP/MuSiC executable to compute RSA (leave empty software is in system PATH)
         rsa_cache_path (Union[None, str]=None):         path to write/read to/from RSA values
         theta_regularization (float=0.01):              regularization term for LOR/LR at frequency level
@@ -136,7 +136,7 @@ class MSA:
 
     # Constructor dependencies -------------------------------------------------
     def _init_structure(self) -> None:
-        """Parse PDB file and compute RSA (Relative Solvent Accessibility) values with DSSP or MuSiC."""
+        """Parse PDB file and compute RSA (Relative Solvent Accessibility) values with biopython, DSSP or MuSiC."""
 
         # Case: pdb_path is None -> just log some warnings and continue
         if self.pdb_path is None:
@@ -154,7 +154,7 @@ class MSA:
             return None
         
         # Set Structure
-        self.logger.step(f"parse PDB structure '{os.path.basename(self.pdb_path)}' (chain '{self.chain}') and compute RSA with DSSP or MuSiC.")
+        self.logger.step(f"parse PDB structure '{os.path.basename(self.pdb_path)}' (chain '{self.chain}') and compute RSA with biopython DSSP or MuSiC.")
         assert self.chain is not None, f"{self.error_prefix}: pdb_path='{self.pdb_path}' is set, so please set also the PDB chain to consider."
         self.structure = Structure(
             self.pdb_path,

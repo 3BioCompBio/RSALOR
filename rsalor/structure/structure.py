@@ -5,11 +5,11 @@ from typing import Union, List, Dict, Literal
 from rsalor.sequence import AminoAcid
 from rsalor.structure import Residue
 from rsalor.sequence import Sequence
-from rsalor.rsa import RSASolver, RSADSSP, RSAMuSiC
+from rsalor.rsa import RSASolver, RSABiopython, RSADSSP, RSAMuSiC
 
 # Execution --------------------------------------------------------------------
 class Structure:
-    """Structure object for parsing all Residues from ATOM lines and assign RSA (with DSSP or MuSiC).
+    """Structure object for parsing all Residues from ATOM lines and assign RSA (with biopython (Shrake & Rupley), DSSP or MuSiC).
 
     usage:
     structure = Structure('./my_pdb.pdb', 'A')
@@ -17,6 +17,7 @@ class Structure:
 
     # Constants ----------------------------------------------------------------
     RSA_SOLVERS: Dict[str, RSASolver] = {
+        "biopython": RSABiopython,
         "DSSP": RSADSSP,
         "MuSiC": RSAMuSiC,
     }
@@ -26,17 +27,17 @@ class Structure:
             self,
             pdb_path: str,
             chain: str,
-            rsa_solver: Literal["DSSP", "MuSiC"]="DSSP",
+            rsa_solver: Literal["biopython", "DSSP", "MuSiC"]="biopython",
             rsa_solver_path: Union[None, str]=None,
             rsa_cache_path: Union[None, str]=None,
             verbose: bool=False,
         ):
-        """Structure object for parsing all Residues from ATOM lines and assign RSA (with DSSP or MuSiC).
+        """Structure object for parsing all Residues from ATOM lines and assign RSA (with biopython, DSSP or MuSiC).
 
         arguments:
         pdb_path (str):                                   path to PDB file
         chain (str):                                      target chain in the PDB
-        rsa_solver (Literal["DSSP", "MuSiC"]="DSSP"):     solver to use to compute RSA
+        rsa_solver ('biopython'/'DSSP'/'MuSiC'):          solver to use to compute RSA
         rsa_solver_path (Union[None, str]=None):          path to solver executable
         rsa_cache_path (Union[None, str]=None):           path to write/read to/from RSA values
         verbose (bool=False):                             set True for logs
