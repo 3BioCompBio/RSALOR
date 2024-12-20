@@ -41,7 +41,7 @@ class MSA:
             rsa_solver: Literal["biopython", "DSSP", "MuSiC"]="biopython",
             rsa_solver_path: Union[None, str]=None,
             rsa_cache_path: Union[None, str]=None,
-            theta_regularization: float=0.01,
+            theta_regularization: float=0.1,
             n_regularization: float=0.0,
             count_target_sequence: bool=True,
             remove_redundant_sequences: bool=True,
@@ -318,6 +318,7 @@ class MSA:
             self.logger.warning(f"{self.str_seq_align.internal_gap2} internal residues in the PDB do not correspond to a position in trimmed MSA.", critical=True)
         if critical_alignment_warning and not self.disable_warnings:
             self.str_seq_align.show(n_lines=80, only_critical_chunks=True)
+            self.logger.warning("Please, make sure the first sequence in your MSA file is the target sequence to mutate.", critical=True)
 
     def set_rsa_factor(self, rsa_factor_function: Union[Callable[[float], float], None]=None) -> None:
 
