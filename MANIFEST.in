@@ -1,6 +1,6 @@
 # Include files required for building C++ extension
-include rsalor/weights/include *.h
-include rsalor/weights *.cpp
+recursive-include rsalor/weights/include *.h
+recursive-include rsalor/weights *.cpp
 
 # Exclude files and directories that should not be in the package
 exclude fig/*
