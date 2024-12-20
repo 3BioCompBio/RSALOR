@@ -1,5 +1,5 @@
 # Include files required for building C++ extension
-recursive-include rsalor/weights/include *.h
+include pycofitness/plmdca/include/*
 recursive-include rsalor/weights *.cpp
 
 # Exclude files and directories that should not be in the package
