@@ -2,6 +2,7 @@
 __pycache__/
 build/
 rsalor.egg-info/
+dist/
 
 # Ignore experiments
 src/

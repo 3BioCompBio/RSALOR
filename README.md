@@ -1,6 +1,8 @@
 
 # RSALOR
 
+[![PyPi Version](https://img.shields.io/pypi/v/rsalor.svg)](https://pypi.org/project/rsalor/)
+
 `rsalor` is a Python package that computes the `RSA*LOR` score for each missence mutation in a protein. It combines multiple computational steps into a fast and user-friendly tool.
 
 **Please cite**:
