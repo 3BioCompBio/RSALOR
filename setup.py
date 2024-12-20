@@ -24,7 +24,7 @@ compute_weights_ext = Extension(
 # Setup ------------------------------------------------------------------------
 setup(
     name="rsalor",
-    version="1.1.0",
+    version="1.0.0",
     author="Matsvei Tsishyn",
     author_email="matsvei.tsishyn@protonmail.com",
     description="Combine structural (Relative Solvent Accessibility) and Evolutionary (Log Odd Ratio from MSA) data to evaluate missence mutations in proteins.",
