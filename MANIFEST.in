@@ -1,5 +1,5 @@
 # Include files required for building C++ extension
-include pycofitness/plmdca/include/*
+include rsalor/weights/include/*
 recursive-include rsalor/weights *.cpp
 
 # Exclude files and directories that should not be in the package
@@ -16,5 +16,5 @@ global-exclude *.a
 global-exclude *.o
 
 # Exclude build artifacts
-global-exclude build/*
+global-exclude rsalor/weights/build/*
 global-exclude *.egg-info/*
