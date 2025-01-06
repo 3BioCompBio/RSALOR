@@ -18,7 +18,7 @@ from rsalor.utils import Logger
 
 # Main -------------------------------------------------------------------------
 class MSA:
-    """Class MSA: computes and collects all data from the MSA and structural information from the PDB.
+    """Class MSA: Combines structural data (RSA) and evolutionary data (Log Odd Ratio, LOR from MSA) to evaluate missense mutations in proteins.
     Main class of the RSALOR package.
     """
 
@@ -38,48 +38,65 @@ class MSA:
             msa_path: str,
             pdb_path: Union[None, str]=None,
             chain: Union[None, str]=None,
-            rsa_solver: Literal["biopython", "DSSP", "MuSiC"]="biopython",
-            rsa_solver_path: Union[None, str]=None,
-            rsa_cache_path: Union[None, str]=None,
-            theta_regularization: float=0.1,
+            theta_regularization: float=0.01,
             n_regularization: float=0.0,
             count_target_sequence: bool=True,
             remove_redundant_sequences: bool=True,
             use_weights: bool=True,
             seqid: float=0.80,
             num_threads: int=1,
-            weights_cache_path: Union[None, str]=None,
+            rsa_solver: Literal["biopython", "DSSP", "MuSiC"]="biopython",
+            rsa_solver_path: Union[None, str]=None,
             trimmed_msa_path: Union[None, str]=None,
             allow_msa_overwrite: bool=False,
+            weights_cache_path: Union[None, str]=None,
+            rsa_cache_path: Union[None, str]=None,
             verbose: bool=False,
             disable_warnings: bool=False,
             name: Union[None, str]=None,
         ):
-        """MSA: collects and computes all data from the MSA and combines with structural information from the PDB.
+        """\nRSA*LOR: Combines structural data (RSA) and evolutionary data (Log Odd Ratio, LOR from MSA) to evaluate missense mutations in proteins.
         
-        usage:
-        msa = MSA('./msa/msa1.fasta', './pdb/pdb1.pdb', 'A')
+    ----------------------------------------------------------------------------
+    usage (Python):
+      from rsalor import MSA                        # Import pip package
+      msa = MSA('./msa1.fasta', './pdb1.pdb', 'A')  # Initialize MSA object with an MSA file, a PDB file and corresponding chain in the PDB
+      scores = msa.get_scores()                     # Compute RSA*LOR scores of all single-site missense mutations
+      msa.save_scores("./msa1_scores.csv")          # Save scores to a '.csv' file
 
-        Arguments:
-        msa_path (str):                                 path to MSA '.fasta' file
-        pdb_path (Union[None, str]=None):               path to PDB '.pdb' file (leave empty to ignore structure)
-        chain (Union[None, str]=None):                  chain of the PDB to consider
-        rsa_solver ('biopython'/'DSSP'/'MuSiC')         solver to use to compute RSA
-        rsa_solver_path (Union[None, str]=None):        path to DSSP/MuSiC executable to compute RSA (leave empty software is in system PATH)
-        rsa_cache_path (Union[None, str]=None):         path to write/read to/from RSA values
-        theta_regularization (float=0.01):              regularization term for LOR/LR at frequency level
-        n_regularization (float=0.0):                   regularization term for LOR/LR at counts level
-        count_target_sequence (bool=True):              count target (first) sequence of the MSA in frequencies
-        remove_redundant_sequences (bool=True):         process MSA to remove redundent sequences
-        use_weights (bool=True):                        compute weights
-        seqid (float=0.80):                             sequence identity to consider two sequence as close (for weights)
-        num_threads (int=1):                            number of threads (CPUs) for weights evaluation (in the C++ backend)
-        weights_cache_path (Union[None, str]=None):     set to read (is file exists) write (is files does not exists) weights (leave empty to ignore)
-        trimmed_msa_path (Union[None, str]=None):       set to save the trimmed + non-redundent MSA file (leave empty to ignore)
-        allow_msa_overwrite (bool=False):               allow to overwrite initial MSA file with the trimmed + non-redundent MSA file
-        verbose (bool=False):                           log execution steps
-        disable_warnings (bool=False)                   disable logging of Warnings
-        name (Union[None, str]=None):                   overwrite name of the MSA instance (for logging)
+    ----------------------------------------------------------------------------
+    Main arguments:
+      msa_path (str)                            path to MSA '.fasta' file
+
+    Structure arguments:
+      pdb_path (None | str, None)               path to PDB '.pdb' file (leave empty to ignore structure)
+      chain (None | str, None)                  chain in the PDB to consider
+    
+    LOR/LR arguments:
+      theta_regularization (float, 0.01)        regularization term for LOR/LR at amino acid frequencies level
+      n_regularization (float, 0.0)             regularization term for LOR/LR at amino acid counts level
+      count_target_sequence (bool, True)        count target (first) sequence of the MSA in frequencies
+      remove_redundant_sequences (bool, True)   pre-process MSA to remove redundent sequences
+      use_weights (bool, True)                  consider relative weights of sequences of the MSA for LOR/LR evaluation
+      seqid (float, 0.80)                       sequence identity threshold to consider two sequence as close (for weights)
+      num_threads (int, 1)                      number of threads (CPUs) for weights evaluation (in the C++ backend)
+
+    RSA arguments:
+      rsa_solver ('biopython'/'DSSP'/'MuSiC')   used solver to compute RSA (DSSP and MuSiC require the software to be installed)
+      rsa_solver_path (None | str, None)        path to DSSP/MuSiC executable to compute RSA (leave empty if software is in system PATH)
+      
+    Files management arguments:
+      trimmed_msa_path (None | str, None)       set to save the trimmed + non-redundent MSA file (leave empty to ignore)
+      allow_msa_overwrite (bool, False)         allow to overwrite initial MSA file with the trimmed + non-redundent MSA file
+      
+    Cache arguments:
+      weights_cache_path (None | str, None)     set to read (is file exists) or write (is files does not exists) weights (leave empty to ignore)
+      rsa_cache_path (None | str, None)         set to read (is file exists) or write (is files does not exists) rsa values (leave empty to ignore)
+
+    Logging arguments:
+      verbose (bool, False)                     log execution steps
+      disable_warnings (bool, False)            disable logging of Warnings
+      name (None | str, None)                   name of the MSA object (for logging)
         """
 
         # MSA path Guardians
@@ -480,6 +497,11 @@ class MSA:
 
 
     # Base Properties ----------------------------------------------------------
+    @classmethod
+    def help(cls) -> None:
+        """Log main usage (help) of MSA class in the 'rsalor' package."""
+        print(cls.__init__.__doc__)
+    
     def __str__(self) -> str:
         return f"MSA('{self.name}')"
     
