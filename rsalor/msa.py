@@ -42,8 +42,8 @@ class MSA:
             n_regularization: float=0.0,
             count_target_sequence: bool=True,
             remove_redundant_sequences: bool=True,
-            use_weights: bool=True,
-            seqid: float=0.80,
+            seqid_weights: Union[None, float]=0.80,
+            min_seqid: Union[None, float]=0.35,
             num_threads: int=1,
             rsa_solver: Literal["biopython", "DSSP", "MuSiC"]="biopython",
             rsa_solver_path: Union[None, str]=None,
@@ -77,8 +77,8 @@ class MSA:
       n_regularization (float, 0.0)             regularization term for LOR/LR at amino acid counts level
       count_target_sequence (bool, True)        count target (first) sequence of the MSA in frequencies
       remove_redundant_sequences (bool, True)   pre-process MSA to remove redundent sequences
-      use_weights (bool, True)                  consider relative weights of sequences of the MSA for LOR/LR evaluation
-      seqid (float, 0.80)                       sequence identity threshold to consider two sequence as close (for weights)
+      seqid_weights (None | float, 0.80)        seqid threshold to consider two sequences in the same cluster for weighting (set None to ignore)
+      min_seqid (None | float, 0.35)            sequences which seqid with target sequence is below will be discarded (set None to ignore)
       num_threads (int, 1)                      number of threads (CPUs) for weights evaluation (in the C++ backend)
 
     RSA arguments:
@@ -118,8 +118,8 @@ class MSA:
         self.n_regularization: float = n_regularization
         self.remove_redundant_sequences: bool = remove_redundant_sequences
         self.count_target_sequence: bool = count_target_sequence
-        self.use_weights: bool = use_weights
-        self.seqid: float = seqid
+        self.seqid_weights: Union[None, float] = seqid_weights
+        self.min_seqid: Union[None, float] = min_seqid
         self.num_threads: int = num_threads
         self.weights_cache_path: str = weights_cache_path
         self.trimmed_msa_path: Union[None, str] = trimmed_msa_path
@@ -133,6 +133,10 @@ class MSA:
 
         # Read sequences
         self._read_sequences()
+
+        # Filter sequences that are too far from target sequence
+        if min_seqid is not None:
+            self._remove_far_seqid_sequences()
 
         # Align Structure and Sequence (if pdb_path is specified)
         self._align_structure_to_sequence()
@@ -153,7 +157,7 @@ class MSA:
 
     # Constructor dependencies -------------------------------------------------
     def _init_structure(self) -> None:
-        """Parse PDB file and compute RSA (Relative Solvent Accessibility) values with biopython, DSSP or MuSiC."""
+        """Parse PDB file and compute RSA (Relative Solvent Accessibility)."""
 
         # Case: pdb_path is None -> just log some warnings and continue
         if self.pdb_path is None:
@@ -171,7 +175,7 @@ class MSA:
             return None
         
         # Set Structure
-        self.logger.step(f"parse PDB structure '{os.path.basename(self.pdb_path)}' (chain '{self.chain}') and compute RSA with biopython DSSP or MuSiC.")
+        self.logger.step(f"parse PDB structure '{os.path.basename(self.pdb_path)}' (chain '{self.chain}') and compute RSA.")
         assert self.chain is not None, f"{self.error_prefix}: pdb_path='{self.pdb_path}' is set, so please set also the PDB chain to consider."
         self.structure = Structure(
             self.pdb_path,
@@ -277,6 +281,43 @@ class MSA:
         # Set target sequence name
         self.target_sequence.name += " (trimmed MSA)"
 
+    def _remove_far_seqid_sequences(self) -> None:
+        """Filter sequences that are too far from target sequence by sequence identity."""
+
+        # Guardian
+        assert 0.0 < self.min_seqid < 1.0, f"{self.error_prefix}: min_seqid={self.min_seqid} should be stricktly between 0 and 1."
+
+        # Log
+        self.logger.step(f"filter sequences that are too far from target sequence.")
+
+        # Compute sequences to keep
+        keep_sequences: List[Sequence] = []
+        target_sequence_str = self.sequences[0].sequence
+        for current_sequence in self.sequences:
+            current_sequence_str = current_sequence.sequence
+
+            # Compute seqid with target sequence
+            num_identical_residues = sum([int(aa1 == aa2) for aa1, aa2 in zip(target_sequence_str, current_sequence_str)])
+            num_aligned_residues = sum([int(aa != self.GAP_CHAR) for aa in current_sequence_str])
+            current_seqid = num_identical_residues / num_aligned_residues
+
+            if current_seqid > self.min_seqid:
+                keep_sequences.append(current_sequence)
+
+        # Update MSA sequences
+        l1, l2 = len(self.sequences), len(keep_sequences)
+        self.sequences = keep_sequences
+
+        # Log results
+        self.logger.log(f" * filter: {l1} -> {l2} (min_seqid={self.min_seqid:.2f})")
+
+        # Guardians
+        if l2 == 0:
+            error_log = f"{self.error_prefix}: remove_far_seqid_sequences(): no sequence left."
+            error_log += f"\n - No sequences left in the MSA after removing sequences that are too far from target sequence (by sequence indentity)"
+            error_log += f"\n - min_seqid={self.min_seqid}: please increase value or set to None."
+            raise ValueError(error_log)
+
     def _align_structure_to_sequence(self) -> None:
         """Align residues position between PDB sequence and target sequence of the MSA."""
 
@@ -355,7 +396,7 @@ class MSA:
         """Initialize weights for all sequences of the MSA (using C++ backend or from a cache file)."""
 
         # Case: keep all weights to 1
-        if not self.use_weights:
+        if self.seqid_weights is None:
             # Put weight of first sequence to 0.0 manually to ignore it if required
             if not self.count_target_sequence:
                 self.sequences[0].weight = 0.0
@@ -379,7 +420,7 @@ class MSA:
             self.logger.step("compute weights using C++ backend.")
             dt = (0.00000000015 * self.length * self.depth**2) / self.num_threads
             dt_str = time_str(dt)
-            self.logger.log(f" * seqid (to compute clusters) : {self.seqid}")
+            self.logger.log(f" * seqid (to compute clusters) : {self.seqid_weights}")
             self.logger.log(f" * expected computation-time   : {dt_str} (with {self.num_threads} CPUs)")
 
             # Case when processed+trimmed MSA in saved 
@@ -388,7 +429,7 @@ class MSA:
                     self.trimmed_msa_path,
                     self.length,
                     self.depth,
-                    self.seqid,
+                    self.seqid_weights,
                     self.count_target_sequence,
                     self.num_threads,
                     self.verbose
@@ -402,7 +443,7 @@ class MSA:
                         tmp_msa_path,
                         self.length,
                         self.depth,
-                        self.seqid,
+                        self.seqid_weights,
                         self.count_target_sequence,
                         self.num_threads,
                         self.verbose
