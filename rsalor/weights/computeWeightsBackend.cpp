@@ -11,16 +11,6 @@ extern "C" float* computeWeightsBackend(
 )
 {  
 
-    // Check compatibility with multi-threading
-    #if defined(_OPENMP)
-        // OK: can use multiple threads
-    #else 
-        if(num_threads > 1){
-            std::cerr << "ERROR in computeWeights() (C++ backend): Cannot set multiple threads when OpenMP is not supported.\n";
-            throw std::runtime_error("Invalid number of threads");
-        }
-    #endif
-
     // Init MSA
     MSA msa(
         msa_path, 
@@ -33,7 +23,7 @@ extern "C" float* computeWeightsBackend(
     );
 
     // Check depth consistency
-    unsigned int observed_msa_depth = msa.get_depth();
+    unsigned int observed_msa_depth = msa.getDepth();
     if(observed_msa_depth != msa_depth) {
         std::cerr << "ERROR in computeWeights() (C++ backend): input msa_depth do not match to computed msa depth." << std::endl;
         std::cerr << " * msa_path:           " << msa_path << std::endl;

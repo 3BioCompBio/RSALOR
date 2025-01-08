@@ -15,8 +15,8 @@ compute_weights_ext = Extension(
     include_dirs=[ # .h directories
         'rsalor/weights/include',
     ],
-    extra_compile_args=['-std=c++11', '-O3', '-fopenmp'],  # optimization and other flags
-    extra_link_args=['-fopenmp', '-O3'],  # Link with the OpenMP runtime
+    extra_compile_args=['-std=c++11', '-O3'],  # optimization and other flags
+    extra_link_args=['-O3'],
     language='c++',
 )
 
@@ -24,14 +24,13 @@ compute_weights_ext = Extension(
 # Setup ------------------------------------------------------------------------
 setup(
     name="rsalor",
-    version="1.0.6",
+    version="1.0.7",
     author="Matsvei Tsishyn",
     author_email="matsvei.tsishyn@protonmail.com",
     description="Combines structural data (Relative Solvent Accessibility, RSA) and evolutionary data (Log Odd Ratio, LOR from MSA) to evaluate missense mutations in proteins.",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     url="https://github.com/3BioCompBio/RSALOR",
-    #download_url="https://pypi.org/project/rsalor/",
     python_requires=">=3.9",
     packages=find_packages(),
     install_requires=[

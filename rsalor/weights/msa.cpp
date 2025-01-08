@@ -1,12 +1,6 @@
 
 // Header ----------------------------------------------------------------------
-#if defined(_OPENMP)
-    #include <omp.h>
-#endif
 #include "include/msa.h"
-
-
-// -----------------------------------------------------------------------------
 
 // MSA: Constructor ------------------------------------------------------------
 MSA::MSA(
@@ -39,8 +33,7 @@ verbose(m_verbose)
     this->weights = this->computeWeights();
 }
 
-
-// Methods ---------------------------------------------------------------------
+// Parse MSA sequences from file  ----------------------------------------------
 std::vector<std::vector<uint8_t>> MSA::readSequences()
 {
 
@@ -84,88 +77,50 @@ std::vector<std::vector<uint8_t>> MSA::readSequences()
     return seqs_int_form;
 }
 
+// Assign weights for all sequences based on clusters --------------------------
+
 // Compute sequences weight
-std::vector<float> MSA::computeWeights()
-{
-    /*  Computes sequences weight.
+std::vector<float> MSA::computeWeights(){
 
-        Returns
-        -------
-            weights   : The weigh of sequences computed with respect to 
-                sequence identity obtained from this->seqid.
+    // Init counts (all threads)
+    std::vector<unsigned int> counts(this->msa_depth, 1);
 
-    */
+    // Count or ignore first sequence for weights computations by starting loop at 0 or 1
+    unsigned int start_loop = this->count_target_sequence ? 0 : 1;
 
-    // Init
-    std::vector<unsigned int> counts(this->msa_depth);
-    for(unsigned int i = 0; i < this->msa_depth; ++i){
-        counts[i] = 1;
+    // Initialize the per-thread counts vectors
+    std::vector<std::vector<unsigned int>> thread_counts(
+        num_threads, std::vector<unsigned int>(this->msa_depth, 0)
+    );
+
+    // Separate indices in chunks for each thread
+    // * Trick: Since we only loop on half (i, j)-matrix (j < i), first i iterations will stop much earlier than last,
+    //          so we distribute i indices evenly across threads, so they all terminate approximatively at the same time
+    std::vector<std::vector<unsigned int>> threads_indices(num_threads);
+    for (unsigned int i = start_loop; i < this->msa_depth; ++i) {
+        unsigned int thread_id = i % num_threads;
+        threads_indices[thread_id].push_back(i);
     }
 
-    // Remove first sequence from other weights computations by starting loop at 1
-    unsigned int start_loop;
-    if(this->count_target_sequence) {
-        start_loop = 0; // count first sequence
-    } else {
-        start_loop = 1; // ignore first sequence
+    // Manage multi-threading
+    std::vector<std::thread> threads;
+    for (unsigned int t = 0; t < num_threads; ++t) {
+        threads.emplace_back( // ok here some magic
+            [this, &threads_indices, &thread_counts, t, start_loop]() {
+            countClustersInRange(threads_indices[t], thread_counts[t], start_loop); // compute cluster by chunks
+        });
+    }
+    for (auto& thread : threads) {
+        thread.join();
     }
 
-    // Multi-thread case
-    #if defined(_OPENMP)
-        auto num_threads = this->num_threads;
-        #pragma omp parallel num_threads(this->num_threads)
-        {
-            #pragma omp for schedule(dynamic)
-            for (unsigned int i = start_loop; i < this->msa_depth; ++i) {
-                auto& seq_i = this->seqs_int_form[i];
-                unsigned int num_identical_residues;
-                unsigned int num_aligned_residues;
-                for (unsigned int j = start_loop; j < this->msa_depth; ++j) {
-                    if (j >= i) continue; // Skip redundant comparisons or use (i != j) to exclude diagonal
-                    auto& seq_j = this->seqs_int_form[j];
-                    num_identical_residues = 0;
-                    num_aligned_residues = 0;
-                    for (unsigned int site = 0; site < this->msa_len; ++site) {
-                        char char_i = seq_i[site];
-                        char char_j = seq_j[site];
-                        num_identical_residues += char_i == char_j;
-                        num_aligned_residues += (char_i != 20 || char_j != 20);
-                    }
-                    if (static_cast<float>(num_identical_residues) > this->seqid * static_cast<float>(num_aligned_residues)) {
-                        #pragma omp atomic
-                        ++counts[i];
-                        #pragma omp atomic
-                        ++counts[j];
-                    }
-                }
-            }
+    // Merge thread counts into global counts
+    for (const auto& thread_count : thread_counts) {
+        for (unsigned int i = 0; i < this->msa_depth; ++i) {
+            counts[i] += thread_count[i];
         }
-    
-    // Single-thread version
-    #else
-        for (unsigned int i = start_loop; i < this->msa_depth; ++i) {
-            auto& seq_i = this->seqs_int_form[i];
-            unsigned int num_identical_residues;
-            unsigned int num_aligned_residues;
-            for (unsigned int j = start_loop; j < this->msa_depth; ++j) {
-                if (i >= j) continue; // Skip redundant comparisons or use (i != j) to exclude diagonal
-                auto& seq_j = this->seqs_int_form[j];
-                num_identical_residues = 0;
-                num_aligned_residues = 0;
-                for (unsigned int site = 0; site < this->msa_len; ++site) {
-                    char char_i = seq_i[site];
-                    char char_j = seq_j[site];
-                    num_identical_residues += char_i == char_j;
-                    num_aligned_residues += (char_i != 20 || char_j != 20);
-                }
-                if (static_cast<float>(num_identical_residues) > this->seqid * static_cast<float>(num_aligned_residues)) {
-                    ++counts[i];
-                    ++counts[j];                    
-                }
-            }
-        }
-    #endif
-    
+    }
+
     // Convert counts to weights
     std::vector<float> weights(this->msa_depth);
     for(unsigned int i = 0; i < this->msa_depth; ++i){
@@ -181,20 +136,58 @@ std::vector<float> MSA::computeWeights()
     return weights;
 }
 
-// Function to return a pointer to the weights
+void MSA::countClustersInRange(
+    const std::vector<unsigned int>& range_indices,
+    std::vector<unsigned int>& range_counts,
+    const unsigned int start_loop
+)
+{
+    // Init
+    char char_i;
+    char char_j;
+    unsigned int num_identical_residues;
+    unsigned int num_aligned_residues;
+
+    // Loop on range
+    for (auto i : range_indices) {
+        const auto& seq_i = this->seqs_int_form[i];
+        // Loop on other sequences j < i (half matrix because (i, i)=(j, i))
+        for (unsigned int j = start_loop; j < i; ++j) {
+            const auto& seq_j = this->seqs_int_form[j];
+            
+            // Compute seqid(i, j)
+            num_identical_residues = 0;
+            num_aligned_residues = 0;
+            for (unsigned int site = 0; site < this->msa_len; ++site) {
+                char_i = seq_i[site];
+                char_j = seq_j[site];
+                num_identical_residues += char_i == char_j;
+                num_aligned_residues += (char_i != 20 || char_j != 20);
+            }
+            
+            // Update if (i, j) in same cluster
+            if (static_cast<float>(num_identical_residues) > this->seqid * static_cast<float>(num_aligned_residues)) {
+                ++range_counts[i];
+                ++range_counts[j];
+            }
+        }
+    }
+}
+
+// Getter ----------------------------------------------------------------------
 float* MSA::getWeightsPointer() {
     return weights.data();
 }
 
 // Getters
-unsigned int MSA::get_depth() {
+unsigned int MSA::getDepth() {
     return this->msa_depth;
 }
 
-unsigned int MSA::get_length() {
+unsigned int MSA::getLength() {
     return this->msa_len;
 }
 
-float MSA::get_Neff() {
+float MSA::getNeff() {
     return std::accumulate(this->weights.begin(), this->weights.end(), 0.f);
 }

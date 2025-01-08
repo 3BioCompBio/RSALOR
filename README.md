@@ -45,7 +45,6 @@ msa.save_scores("./test_data/6acv_A_29-94_scores.csv", sep=";")
 - Python 3.9 or later
 - Python packages `numpy` ans `biopython` (version 1.75 or later)
 - A C++ compiler that supports C++11 (such as GCC)
-- Optionally, OpenMP for multithreading support
 
 An example of a working `conda` environment is provided in `./conda-env.yml`.
 

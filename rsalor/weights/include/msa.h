@@ -8,7 +8,9 @@
     #include<unordered_map>
     #include<unordered_set>
     #include<numeric>
-    #include<cstdint>  // For uint8_t
+    #include<cstdint>  // For uint8_t type
+    #include<thread>   // Standard C++ multi-threading
+    //#include<chrono>   // To time code execution
 
     class MSA {
     protected:
@@ -38,11 +40,17 @@
         // Methods
         std::vector<std::vector<uint8_t>> readSequences();
         std::vector<float> computeWeights();
+        void countClustersInRange(
+            const std::vector<unsigned int>& range_indices,
+            std::vector<unsigned int>& thread_counts,
+            const unsigned int start_loop
+        );
+
+        // Getters
         float* getWeightsPointer();
-        unsigned int get_depth();
-        unsigned int get_length();
-        float get_Neff();
-
+        unsigned int getDepth();
+        unsigned int getLength();
+        float getNeff();
+        
     };
-
-#endif // MSA_H
+#endif

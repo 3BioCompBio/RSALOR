@@ -6,9 +6,6 @@ project(computeWeightsBackend)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-# Check for OpenMP support
-find_package(OpenMP)
-
 # Include directories
 include_directories(include)
 
@@ -20,13 +17,6 @@ set(SRC_FILES
 
 # Shared library output
 add_library(computeWeightsBackend SHARED ${SRC_FILES})
-
-# Link OpenMP if found
-if(OpenMP_CXX_FOUND)
-  target_link_libraries(computeWeightsBackend PRIVATE OpenMP::OpenMP_CXX)
-else()
-  message(WARNING "OpenMP not found, proceeding without OpenMP support")
-endif()
 
 # Change output name to _computeWeightsBackend.so
 set_target_properties(computeWeightsBackend PROPERTIES
