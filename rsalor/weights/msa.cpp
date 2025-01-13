@@ -143,10 +143,8 @@ void MSA::countClustersInRange(
 )
 {
     // Init
-    char char_i;
-    char char_j;
     unsigned int num_identical_residues;
-    unsigned int num_aligned_residues;
+    unsigned int identical_residues_thr = static_cast<unsigned int>(this->seqid * this->msa_len);
 
     // Loop on range
     for (auto i : range_indices) {
@@ -157,16 +155,12 @@ void MSA::countClustersInRange(
             
             // Compute seqid(i, j)
             num_identical_residues = 0;
-            num_aligned_residues = 0;
             for (unsigned int site = 0; site < this->msa_len; ++site) {
-                char_i = seq_i[site];
-                char_j = seq_j[site];
-                num_identical_residues += char_i == char_j;
-                num_aligned_residues += (char_i != 20 || char_j != 20);
+                num_identical_residues += seq_i[site] == seq_j[site];
             }
             
             // Update if (i, j) in same cluster
-            if (static_cast<float>(num_identical_residues) > this->seqid * static_cast<float>(num_aligned_residues)) {
+            if (num_identical_residues > identical_residues_thr) {
                 ++range_counts[i];
                 ++range_counts[j];
             }
