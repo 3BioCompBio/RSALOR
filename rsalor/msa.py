@@ -400,8 +400,6 @@ class MSA:
             # Put weight of first sequence to 0.0 manually to ignore it if required
             if not self.count_target_sequence:
                 self.sequences[0].weight = 0.0
-            # Set Neff
-            self.Neff: float = np.sum([s.weight for s in self.sequences])
             return None
 
         # Read from cached file case
@@ -459,10 +457,6 @@ class MSA:
         for i, wi in enumerate(weights):
             self.sequences[i].weight = wi
 
-        # Set Neff
-        self.Neff: float = np.sum(weights)
-        self.logger.log(f" * Neff (sum of weights): {self.Neff:.2f}")
-
         # Save weights in cache file if required
         if self.weights_cache_path is not None and not os.path.isfile(self.weights_cache_path):
             self.logger.step(f"save computed weights to file '{self.weights_cache_path}'.")
@@ -474,6 +468,10 @@ class MSA:
 
         # Log
         self.logger.step("initialize residues counts and frequencies.")
+
+        # Set Neff
+        self.Neff: float = sum([sequence.weight for sequence in self.sequences])
+        self.logger.log(f" * Neff (sum of weights): {self.Neff:.2f}")
 
         # Counts
         self.counts = np.zeros((self.length, self.N_STATES), float)
