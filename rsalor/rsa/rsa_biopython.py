@@ -19,29 +19,30 @@ class RSABiopython(RSASolver):
     """
 
     # Constants ----------------------------------------------------------------
+    # Taken from https://pmc.ncbi.nlm.nih.gov/articles/PMC3836772/#pone-0080635-t001
     MAX_SURFACE_MAP = {
-        "ALA": 1.181,
-        "ARG": 2.560,
-        "ASN": 1.655,
-        "ASP": 1.587,
-        "CYS": 1.461,
-        "GLN": 1.932,
-        "GLU": 1.862,
-        "GLY": 0.881,
-        "HIS": 2.025,
-        "ILE": 1.810,
-        "LEU": 1.931,
-        "LYS": 2.258,
-        "MET": 2.034,
-        "PHE": 2.228,
-        "PRO": 1.468,
-        "SER": 1.298,
-        "THR": 1.525,
-        "TRP": 2.663,
-        "TYR": 2.368,
-        "VAL": 1.645,
+        "ALA": 1.29,
+        "ARG": 2.74,
+        "ASN": 1.95,
+        "ASP": 1.93,
+        "CYS": 1.67,
+        "GLN": 2.23,
+        "GLU": 2.25,
+        "GLY": 1.04,
+        "HIS": 2.24,
+        "ILE": 1.97,
+        "LEU": 2.01,
+        "LYS": 2.36,
+        "MET": 2.24,
+        "PHE": 2.40,
+        "PRO": 1.59,
+        "SER": 1.55,
+        "THR": 1.55,
+        "TRP": 2.85,
+        "TYR": 2.63,
+        "VAL": 1.74,
     }
-    MAX_SURFACE_DEFAULT = 1.8186
+    MAX_SURFACE_DEFAULT = 2.01 # mean value
 
     # Methods ------------------------------------------------------------------
     def __str__(self) -> str:
