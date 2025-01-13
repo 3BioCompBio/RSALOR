@@ -285,7 +285,7 @@ class MSA:
         """Filter sequences that are too far from target sequence by sequence identity."""
 
         # Guardian
-        assert 0.0 < self.min_seqid < 1.0, f"{self.error_prefix}: min_seqid={self.min_seqid} should be stricktly between 0 and 1."
+        assert 0.0 <= self.min_seqid < 1.0, f"{self.error_prefix}: min_seqid={self.min_seqid} should be stricktly between 0 and 1."
 
         # Log
         self.logger.step(f"filter sequences that are too far from target sequence.")
@@ -297,9 +297,7 @@ class MSA:
             current_sequence_str = current_sequence.sequence
 
             # Compute seqid with target sequence
-            num_identical_residues = sum([int(aa1 == aa2) for aa1, aa2 in zip(target_sequence_str, current_sequence_str)])
-            num_aligned_residues = sum([int(aa != self.GAP_CHAR) for aa in current_sequence_str])
-            current_seqid = num_identical_residues / num_aligned_residues
+            current_seqid = self._seqid_to_target(target_sequence_str, current_sequence_str)
 
             if current_seqid > self.min_seqid:
                 keep_sequences.append(current_sequence)
@@ -317,7 +315,34 @@ class MSA:
             error_log += f"\n - No sequences left in the MSA after removing sequences that are too far from target sequence (by sequence indentity)"
             error_log += f"\n - min_seqid={self.min_seqid}: please increase value or set to None."
             raise ValueError(error_log)
+        
+    def _seqid_to_target(self, seq1: str, seq2: str) -> float:
+        """Computes sequence identity between two sequences in the MSA."""
 
+        # Init
+        gap = self.GAP_CHAR
+
+        # nogaps ---------------------------------------------------------------
+        num_identical_residues = sum([int(aa1 == aa2) for aa1, aa2 in zip(seq1, seq2)])
+        num_aligned_residues = sum([int(aa != gap) for aa in seq2])
+
+        # coverage -------------------------------------------------------------
+        #L = self.length
+        #n_tail_gaps = 0
+        #for i in range(L):
+        #    if seq2[i] != gap:
+        #        break
+        #    n_tail_gaps += 1
+        #for i in range(L):
+        #    if seq2[-(i+1)] != gap:
+        #        break
+        #    n_tail_gaps += 1
+        #num_identical_residues = sum([int(aa1 == aa2) for aa1, aa2 in zip(seq1, seq2)])
+        #num_aligned_residues = L - n_tail_gaps
+
+        # Return 
+        return num_identical_residues / num_aligned_residues
+        
     def _align_structure_to_sequence(self) -> None:
         """Align residues position between PDB sequence and target sequence of the MSA."""
 
