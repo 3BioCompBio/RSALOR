@@ -318,29 +318,9 @@ class MSA:
         
     def _seqid_to_target(self, seq1: str, seq2: str) -> float:
         """Computes sequence identity between two sequences in the MSA."""
-
-        # Init
         gap = self.GAP_CHAR
-
-        # nogaps ---------------------------------------------------------------
         num_identical_residues = sum([int(aa1 == aa2) for aa1, aa2 in zip(seq1, seq2)])
         num_aligned_residues = sum([int(aa != gap) for aa in seq2])
-
-        # coverage -------------------------------------------------------------
-        #L = self.length
-        #n_tail_gaps = 0
-        #for i in range(L):
-        #    if seq2[i] != gap:
-        #        break
-        #    n_tail_gaps += 1
-        #for i in range(L):
-        #    if seq2[-(i+1)] != gap:
-        #        break
-        #    n_tail_gaps += 1
-        #num_identical_residues = sum([int(aa1 == aa2) for aa1, aa2 in zip(seq1, seq2)])
-        #num_aligned_residues = L - n_tail_gaps
-
-        # Return 
         return num_identical_residues / num_aligned_residues
         
     def _align_structure_to_sequence(self) -> None:
