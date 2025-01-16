@@ -24,6 +24,7 @@ class MSA:
 
 
     # Constants ----------------------------------------------------------------
+    ACCEPTED_EXTENTIONS = ["fasta", "a2m"]
     N_STATES = len(AminoAcid.ONE_2_ID) + 1
     GAP_ID = N_STATES - 1
     GAP_CHAR = AminoAcid.GAP_ONE
@@ -108,7 +109,10 @@ class MSA:
         self.msa_filename: str = os.path.basename(self.msa_path)
         self.name: str = name
         if self.name is None:
-            self.name = self.msa_filename.removesuffix(".fasta")
+            for extention in self.ACCEPTED_EXTENTIONS:
+                if self.msa_filename.endswith(f".{extention}"):
+                    self.name = self.msa_filename.removesuffix(f".{extention}")
+                    break
         self.pdb_path: str = pdb_path
         self.chain: str = chain
         self.rsa_solver: str = rsa_solver
@@ -825,16 +829,19 @@ class MSA:
         # Existance
         assert os.path.exists(msa_path), f"{self.error_prefix}: msa_path='{msa_path}' files does not exist."
 
-        # FASTA format
-        if not msa_path.endswith(".fasta"):
-            error_log = f"{self.error_prefix}: msa_path='{msa_path}' should end with '.fasta'."
-            # Hint for '.ali' format
-            if msa_path.endswith(".ali"):
-                error_log += f"\n * msa_path: '{msa_path}'"
-                error_log += f"\n * input msa_path is expected to be a MSA file in FASTA ('.fasta') format."
-                error_log += f"\n * Please convert the MSA to '.fasta' with python script: "
-                error_log += "\nfrom rsalor.utils import ali_to_fasta"
-                error_log += "\nali_to_fasta('./my_msa.ali', './my_msa.fasta')\n"
+        # Hint for '.ali' format
+        if msa_path.endswith(".ali"):
+            error_log = f"{self.error_prefix}: msa_path='{msa_path}' should be in FASTA format."
+            error_log += f"\n * msa_path: '{msa_path}'"
+            error_log += f"\n * input msa_path is expected to be a MSA file in FASTA ('.fasta') format."
+            error_log += f"\n * Please convert the MSA to '.fasta' with python script: "
+            error_log += "\nfrom rsalor.utils import ali_to_fasta"
+            error_log += "\nali_to_fasta('./my_msa.ali', './my_msa.fasta')\n"
+            raise ValueError(error_log)
+        
+        # ERROR for bad MSA extention
+        if msa_path.split(".")[-1] not in self.ACCEPTED_EXTENTIONS:
+            error_log = f"{self.error_prefix}: msa_path='{msa_path}' should be in FASTA format (with file extention in {self.ACCEPTED_EXTENTIONS})."
             raise ValueError(error_log)
 
     def _verify_sequence_length(self, sequence: Sequence, target_length: int, i: int) -> None:

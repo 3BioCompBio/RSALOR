@@ -31,7 +31,7 @@ class FastaReader:
 
         # Guardians
         assert os.path.isfile(fasta_path), f"ERROR in FastaReader.count_sequences(): fasta_path='{fasta_path}' does not exists."
-        assert fasta_path.endswith(".fasta"), f"ERROR in FastaReader.count_sequences(): fasta_path='{fasta_path}' should end with '.fasta'."
+        assert fasta_path.split(".")[-1] in FastaStream.ACCEPTED_EXTENTIONS, f"ERROR in FastaReader.count_sequences(): fasta_path='{fasta_path}' should end with {FastaStream.ACCEPTED_EXTENTIONS}."
 
         # Count
         HEADER_START_CHAR = Sequence.HEADER_START_CHAR
@@ -60,6 +60,7 @@ class FastaStream:
     """
 
     # Constants ----------------------------------------------------------------
+    ACCEPTED_EXTENTIONS = ["fasta", "a2m"]
     HEADER_START_CHAR = Sequence.HEADER_START_CHAR
 
     # Constructor --------------------------------------------------------------
@@ -67,7 +68,7 @@ class FastaStream:
 
         # Guardians
         assert os.path.isfile(fasta_path), f"ERROR in FastaStream(): fasta_path='{fasta_path}' does not exists."
-        assert fasta_path.endswith(".fasta"), f"ERROR in FastaStream(): fasta_path='{fasta_path}' should end with '.fasta'."
+        assert fasta_path.split(".")[-1] in self.ACCEPTED_EXTENTIONS, f"ERROR in FastaStream(): fasta_path='{fasta_path}' should end with {self.ACCEPTED_EXTENTIONS}."
 
         # Init
         self.fasta_path = fasta_path
