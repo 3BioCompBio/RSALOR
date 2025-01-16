@@ -1,7 +1,7 @@
 
 # RSALOR
 
-[![PyPi Version](https://img.shields.io/pypi/v/rsalor.svg)](https://pypi.org/project/rsalor/)
+[![PyPi Version](https://img.shields.io/pypi/v/rsalor.svg)](https://pypi.org/project/rsalor/) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
 `rsalor` is a Python package that computes the `RSA*LOR` score for each missence mutation in a protein. It combines multiple computational steps into a fast and user-friendly tool.
 
@@ -17,6 +17,7 @@ pip install rsalor
 ```
 
 Make sure the first sequence in your MSA file is the target sequence to mutate.  
+From directory `./test_data/` execute the following Python code:
 ```python
 # Import
 from rsalor import MSA
@@ -25,8 +26,8 @@ from rsalor import MSA
 MSA.help()
 
 # Initialize MSA
-msa_path = "./test_data/6acv_A_29-94.fasta"
-pdb_path = "./test_data/6acv_A_29-94.pdb"
+msa_path = "./6acv_A_29-94.fasta"
+pdb_path = "./6acv_A_29-94.pdb"
 chain = "A"
 msa = MSA(msa_path, pdb_path, chain, num_threads=8, verbose=True)
 
@@ -37,7 +38,7 @@ msa = MSA(msa_path, pdb_path, chain, num_threads=8, verbose=True)
 scores = msa.get_scores() # [{'mutation_fasta': 'S1A', 'mutation_pdb': 'SA1A', 'RSA': 61.54, 'LOR': 5.05, ...}, ...]
 
 # Or directly save scores to a CSV file
-msa.save_scores("./test_data/6acv_A_29-94_scores.csv", sep=";")
+msa.save_scores("./6acv_A_29-94_scores.csv", sep=";")
 ```
 
 ## Requirements
