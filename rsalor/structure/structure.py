@@ -71,16 +71,17 @@ class Structure:
         # Assign RSA
         solver: RSASolver = self.RSA_SOLVERS[rsa_solver]
         rsa_map = solver(self.rsa_solver_path, self.verbose).run(self.pdb_path, rsa_cache_path=rsa_cache_path)
-        n_assigned = 0
+        n_assigned_in_chain = 0
         for residue in self.residues:
             resid = residue.resid
             if resid in rsa_map:
-                n_assigned += 1
+                if residue.chain == self.chain:
+                    n_assigned_in_chain += 1
                 residue.rsa = rsa_map[resid]
 
         # Log
         if self.verbose:
-            print(f" * {n_assigned} / {len(self.chain_residues)} assigned RSA values for chain '{self.chain}'")
+            print(f" * {n_assigned_in_chain} / {len(self.chain_residues)} assigned RSA values for chain '{self.chain}'")
 
 
     # Base properties ----------------------------------------------------------
