@@ -50,8 +50,6 @@ msa.save_scores("./6acv_A_29-94_scores.csv", sep=";")
 - Python packages `numpy` ans `biopython` (version 1.75 or later)
 - A C++ compiler that supports C++11 (such as GCC)
 
-An example of a working `conda` environment is provided in `./conda-env.yml`.
-
 ## Short description
 
 The `rsalor` package combines structural data (Relative Solvent Accessibility, RSA) and evolutionary data (Log Odd Ratio, LOR from MSA) to evaluate missense mutations in proteins.
