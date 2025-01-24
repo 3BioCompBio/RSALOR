@@ -3,6 +3,7 @@ include rsalor/weights/include/*
 recursive-include rsalor/weights *.cpp
 
 # Exclude files and directories that should not be in the package
+exclude Logo.png
 exclude fig/*
 exclude src/*
 exclude tmp/*

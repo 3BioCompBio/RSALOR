@@ -67,7 +67,7 @@ class MSA:
 
     ----------------------------------------------------------------------------
     Main arguments:
-      msa_path (str)                            path to MSA '.fasta' file
+      msa_path (str)                            path to MSA '.fasta' or '.a2m' file
 
     Structure arguments:
       pdb_path (None | str, None)               path to PDB '.pdb' file (leave empty to ignore structure)
