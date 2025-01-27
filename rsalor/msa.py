@@ -1,6 +1,7 @@
 
 # Imports ----------------------------------------------------------------------
 import os.path
+from os import cpu_count
 from typing import Union, List, Dict, Literal, Callable
 import tempfile
 import numpy as np
@@ -131,6 +132,11 @@ class MSA:
         self.verbose: bool = verbose
         self.disable_warnings: bool = disable_warnings
         self.logger = Logger(verbose, disable_warnings, step_prefix="RSALOR", warning_note=f" in {self}", error_note=f" in {self}")
+
+        # Too much CPU warning
+        num_cpu_total = cpu_count()
+        if num_cpu_total is None or num_cpu_total < self.num_threads:
+            self.logger.warning(f"num_threads={num_threads} exeeds total number of CPUs detected on current machine (num_cpu_total={num_cpu_total}).")
 
         # Init structure (if pdb_path is specified)
         self._init_structure()
