@@ -9,8 +9,9 @@
 `rsalor` is a Python package that computes the `RSA*LOR` score for each missence mutation in a protein. It combines multiple computational steps into a fast and user-friendly tool.
 
 **Please cite**:
-Hermans, P., Tsishyn, M., Schwersensky, M., Rooman, M., & Pucci, F. (2024). Exploring evolution to uncover insights into protein mutational stability. Molecular Biology and Evolution, msae267.  
-[Link to publication](https://academic.oup.com/mbe/advance-article/doi/10.1093/molbev/msae267/7934942).
+Matsvei Tsishyn, Pauline Hermans, Fabrizio Pucci, Marianne Rooman (2025). Residue conservation and solvent accessibility are (almost) all you need for predicting mutational effects in proteins.
+[bioRxiv 2025.02.03.636212](https://www.biorxiv.org/content/10.1101/2025.02.03.636212v1).
+
 
 ## Installation and Usage
 
