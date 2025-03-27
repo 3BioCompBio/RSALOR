@@ -20,13 +20,25 @@ class Sequence:
     # Constants ----------------------------------------------------------------
     HEADER_START_CHAR = ">"
     GAP_CHAR = AminoAcid.GAP_ONE
+    AMINO_ACIDS_IDENTITY_MAP = {aa.one: aa.one for aa in AminoAcid.get_all()} | {aa.one.lower(): aa.one.lower() for aa in AminoAcid.get_all()}
 
     # Constructor --------------------------------------------------------------
-    def __init__(self, name: str, sequence: str, weight: float=1.0, to_upper: bool=True):
+    def __init__(self, name: str, sequence: str, weight: float=1.0, to_upper: bool=True, convert_special_characters: bool=True):
+        """Constructor for a (protein) Sequence object.
+            name                         (str)         name of the sequence
+            sequence                     (str)         amino acid sequence as a string
+            weight                       (float=1.0)   weight of the sequence (in an MSA)
+            to_upper                     (bool=True)   if True, convert all lower case amino acids to upper cases (such as in '.a2m' format)
+            convert_special_characters   (bool=True)   if True, convert all non-standard characters (like '.' or '_') to a gap '-' (such as in '.a2m' format)
+        """
         if name.startswith(self.HEADER_START_CHAR):
             name = name.removeprefix(self.HEADER_START_CHAR)
         if to_upper:
             sequence = sequence.upper()
+        if convert_special_characters:
+            gap = self.GAP_CHAR
+            aa_map = self.AMINO_ACIDS_IDENTITY_MAP
+            sequence = "".join([aa_map.get(aa, gap) for aa in sequence])
         self.name: str = name
         self.sequence: str = sequence
         self.weight: float = weight
