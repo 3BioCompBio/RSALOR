@@ -57,6 +57,8 @@ The `rsalor` package combines structural data (Relative Solvent Accessibility, R
 
 It parses a Multiple Sequence Alignment (MSA), removes redundant sequences, and assigns a weight to each sequence based on sequence identity clustering. The package then computes the weighted Log Odd Ratio (LOR) and Log Ratio (LR) for each single missense mutation. Additionally, it calculates the Relative Solvent Accessibility (RSA) for each residue and combines the LOR/LR and RSA scores, as described in the reference paper. The package resolves discrepancies between the MSA's target sequence and the protein structure (e.g., missing residues in structure) by aligning the PDB structure with the MSA target sequence.
 
+The sign of RSALOR / LOR is defined such that the result of mutations from a highly represented amino acid to a less represented amino acid is positive, which generally corresponds to a decrease in protein stability or fitness. In other words, large positive values predicts for highly destabilizing/disrupting mutations, while close to zero or negative values predicts for positive or neutral mutations.
+
 ## Compile from source
 
 For performance reasons, `rsalor` uses a C++ backend to weight sequences in the MSA. The C++ code needs to be compiled to use it directly from source. To compile the code, follow these steps:
