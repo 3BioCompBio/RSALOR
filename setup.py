@@ -24,7 +24,7 @@ compute_weights_ext = Extension(
 # Setup ------------------------------------------------------------------------
 setup(
     name="rsalor",
-    version="1.1.1",
+    version="1.1.2",
     author="Matsvei Tsishyn",
     author_email="matsvei.tsishyn@protonmail.com",
     description="Combines structural data (Relative Solvent Accessibility, RSA) and evolutionary data (Log Odd Ratio, LOR from MSA) to evaluate missense mutations in proteins.",
@@ -47,9 +47,9 @@ setup(
         "Operating System :: OS Independent",
         "Topic :: Scientific/Engineering :: Bio-Informatics",
     ],
-    #entry_points={
-    #    "console_scripts":[
-    #        "rsalor=rsalor.main:run_mutation",
-    #    ],
-    #},
+    entry_points={
+        "console_scripts":[
+            "rsalor=rsalor.cli:main",
+        ],
+    },
 )

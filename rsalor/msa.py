@@ -80,7 +80,7 @@ class MSA:
       count_target_sequence (bool, True)        count target (first) sequence of the MSA in frequencies
       remove_redundant_sequences (bool, True)   pre-process MSA to remove redundent sequences
       seqid_weights (None | float, 0.80)        seqid threshold to consider two sequences in the same cluster for weighting (set None to ignore)
-      min_seqid (None | float, 0.35)            sequences which seqid with target sequence is below will be discarded (set None to ignore)
+      min_seqid (None | float, 0.35)            discard sequences which seqid with target sequence is below (set None to ignore)
       num_threads (int, 1)                      number of threads (CPUs) for weights evaluation (in the C++ backend)
 
     RSA arguments:
@@ -92,8 +92,8 @@ class MSA:
       allow_msa_overwrite (bool, False)         allow to overwrite initial MSA file with the trimmed + non-redundent MSA file
       
     Cache arguments:
-      weights_cache_path (None | str, None)     set to read (is file exists) or write (is files does not exists) weights (leave empty to ignore)
-      rsa_cache_path (None | str, None)         set to read (is file exists) or write (is files does not exists) rsa values (leave empty to ignore)
+      weights_cache_path (None | str, None)     set to read (if file exists) or write (if files does not exists) weights (leave empty to ignore)
+      rsa_cache_path (None | str, None)         set to read (if file exists) or write (if files does not exists) rsa values (leave empty to ignore)
 
     Logging arguments:
       verbose (bool, False)                     log execution steps

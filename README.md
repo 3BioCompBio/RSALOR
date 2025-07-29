@@ -6,7 +6,7 @@
 <img src="Logo.png" alt="[RSALOR Logo]" height="300"/>
 </div>
 
-`rsalor` is a Python package that computes the `RSA*LOR` score for each missence mutation in a protein. It combines multiple computational steps into a fast and user-friendly tool.
+`rsalor` is a Python package that computes the `RSA*LOR` score for each missence mutation in a target protein. It combines multiple computational steps into a fast and user-friendly tool.
 
 **Please cite**:
 - [Matsvei Tsishyn, Pauline Hermans, Fabrizio Pucci, Marianne Rooman (2025). Residue conservation and solvent accessibility are (almost) all you need for predicting mutational effects in proteins. Bioinformatics, btaf322](https://doi.org/10.1093/bioinformatics/btaf322).
@@ -39,11 +39,22 @@ msa = MSA(msa_path, pdb_path, chain, num_threads=8, verbose=True)
 # You can ignore structure and RSA by omitting the pdb_path argument
 #msa = MSA(msa_path, num_threads=8, verbose=True)
 
-# Get LOR and other scores for all mutations
+# Get RSA*LOR and other scores for all mutations
 scores = msa.get_scores() # [{'mutation_fasta': 'S1A', 'mutation_pdb': 'SA1A', 'RSA': 61.54, 'LOR': 5.05, ...}, ...]
 
 # Or directly save scores to a CSV file
 msa.save_scores("./6acv_A_29-94_scores.csv", sep=";")
+```
+
+Alternatively, you can run the `rsalor` package with a Command Line Interface (CLI).
+To show CLI usage and optional arguments, run:
+```bash
+rsalor -h
+```
+
+To compute scores for all single-site missence mutations on an example target sequence, from the directory `./test_data/`, run:
+```bash
+rsalor ./6acv_A_29-94.fasta ./6acv_A_29-94.pdb A -o ./6acv_A_29-rsalor.csv
 ```
 
 ## Requirements
