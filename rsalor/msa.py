@@ -25,7 +25,7 @@ class MSA:
 
 
     # Constants ----------------------------------------------------------------
-    ACCEPTED_EXTENTIONS = ["fasta", "a2m"]
+    ACCEPTED_EXTENTIONS = FastaStream.ACCEPTED_EXTENTIONS
     N_STATES = len(AminoAcid.ONE_2_ID) + 1
     GAP_ID = N_STATES - 1
     GAP_CHAR = AminoAcid.GAP_ONE
@@ -68,7 +68,7 @@ class MSA:
 
     ----------------------------------------------------------------------------
     Main arguments:
-      msa_path (str)                            path to MSA '.fasta' or '.a2m' file
+      msa_path (str)                            path to MSA '.fasta' or '.a2m' file (file can be zipped with '.gz')
 
     Structure arguments:
       pdb_path (None | str, None)               path to PDB '.pdb' file (leave empty to ignore structure)
@@ -846,7 +846,7 @@ class MSA:
             raise ValueError(error_log)
         
         # ERROR for bad MSA extention
-        if msa_path.split(".")[-1] not in self.ACCEPTED_EXTENTIONS:
+        if not any([msa_path.endswith(f".{ext}") for ext in self.ACCEPTED_EXTENTIONS]):
             error_log = f"{self.error_prefix}: msa_path='{msa_path}' should be in FASTA format (with file extention in {self.ACCEPTED_EXTENTIONS})."
             raise ValueError(error_log)
 

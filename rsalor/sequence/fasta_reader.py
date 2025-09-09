@@ -2,6 +2,7 @@
 # Imports ----------------------------------------------------------------------
 import os.path
 from typing import List, Union
+import gzip
 from rsalor.sequence import Sequence
 
 
@@ -31,17 +32,21 @@ class FastaReader:
 
         # Guardians
         assert os.path.isfile(fasta_path), f"ERROR in FastaReader.count_sequences(): fasta_path='{fasta_path}' does not exists."
-        assert fasta_path.split(".")[-1] in FastaStream.ACCEPTED_EXTENTIONS, f"ERROR in FastaReader.count_sequences(): fasta_path='{fasta_path}' should end with {FastaStream.ACCEPTED_EXTENTIONS}."
+        if not any([fasta_path.endswith(f".{ext}") for ext in FastaStream.ACCEPTED_EXTENTIONS]):
+            raise ValueError(f"ERROR in FastaReader.count_sequences(): fasta_path='{fasta_path}' should end with {FastaStream.ACCEPTED_EXTENTIONS}.")
 
         # Count
         HEADER_START_CHAR = Sequence.HEADER_START_CHAR
         n = 0
-        with open(fasta_path) as fs:
-            line = fs.readline()
-            while line:
-                if line.startswith(HEADER_START_CHAR):
-                    n += 1
-                line = fs.readline()
+        if fasta_path.endswith(".gz"):
+            file = gzip.open(fasta_path, "rt") # gzip.open supports text mode ("rt") to read strings (not bytes)
+        else:
+            file = open(fasta_path, "r")
+        line = file.readline()
+        while line:
+            if line.startswith(HEADER_START_CHAR):
+                n += 1
+            line = file.readline()
         return n
 
 
@@ -60,7 +65,7 @@ class FastaStream:
     """
 
     # Constants ----------------------------------------------------------------
-    ACCEPTED_EXTENTIONS = ["fasta", "a2m"]
+    ACCEPTED_EXTENTIONS = ["fasta", "a2m", "fasta.gz", "a2m.gz"]
     HEADER_START_CHAR = Sequence.HEADER_START_CHAR
 
     # Constructor --------------------------------------------------------------
@@ -68,11 +73,15 @@ class FastaStream:
 
         # Guardians
         assert os.path.isfile(fasta_path), f"ERROR in FastaStream(): fasta_path='{fasta_path}' does not exists."
-        assert fasta_path.split(".")[-1] in self.ACCEPTED_EXTENTIONS, f"ERROR in FastaStream(): fasta_path='{fasta_path}' should end with {self.ACCEPTED_EXTENTIONS}."
+        if not any([fasta_path.endswith(f".{ext}") for ext in self.ACCEPTED_EXTENTIONS]):
+            raise  ValueError(f"ERROR in FastaStream(): fasta_path='{fasta_path}' should end with {self.ACCEPTED_EXTENTIONS}.")
 
         # Init
         self.fasta_path = fasta_path
-        self.file = open(fasta_path, "r")
+        if fasta_path.endswith(".gz"):
+            self.file = gzip.open(fasta_path, "rt") # gzip.open supports text mode ("rt") to read strings (not bytes)
+        else:
+            self.file = open(fasta_path, "r")
         self.current_id = -1
         self.current_line = self._next_line()
         
