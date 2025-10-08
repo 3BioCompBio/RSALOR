@@ -64,7 +64,7 @@ class MSA:
       from rsalor import MSA                        # Import pip package
       msa = MSA('./msa1.fasta', './pdb1.pdb', 'A')  # Initialize MSA object with an MSA file, a PDB file and corresponding chain in the PDB
       scores = msa.get_scores()                     # Compute RSA*LOR scores of all single-site missense mutations
-      msa.save_scores("./msa1_scores.csv")          # Save scores to a '.csv' file
+      msa.save_scores('./msa1_rsalor-scores.csv')   # Save scores to a '.csv' file
 
     ----------------------------------------------------------------------------
     Main arguments:

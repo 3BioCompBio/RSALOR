@@ -6,7 +6,8 @@
 <img src="Logo.png" alt="[RSALOR Logo]" height="300"/>
 </div>
 
-`rsalor` is a Python package that computes the `RSA*LOR` score for each missence mutation in a target protein. It combines multiple computational steps into a fast and user-friendly tool.
+The `rsalor` package combines structural data (Relative Solvent Accessibility, RSA) and evolutionary data (Log Odd Ratio, LOR from MSA) to evaluate effects of missense mutations in proteins.
+It computes the `RSA*LOR` score for each single-site missense mutation in a target protein by combining multiple computational steps into a fast and user-friendly tool.
 
 **Please cite**:
 - [Matsvei Tsishyn, Pauline Hermans, Fabrizio Pucci, Marianne Rooman (2025). Residue conservation and solvent accessibility are (almost) all you need for predicting mutational effects in proteins. Bioinformatics, btaf322](https://doi.org/10.1093/bioinformatics/btaf322).
@@ -47,25 +48,25 @@ msa.save_scores("./6acv_A_29-94_scores.csv", sep=";")
 ```
 
 Alternatively, you can run the `rsalor` package with a Command Line Interface (CLI).
+To compute scores for all single-site missense mutations on an example target sequence, from the directory `./test_data/`, run:
+```bash
+rsalor ./6acv_A_29-94.fasta ./6acv_A_29-94.pdb A -o ./6acv_A_29-rsalor.csv
+```
+
 To show CLI usage and optional arguments, run:
 ```bash
 rsalor -h
 ```
 
-To compute scores for all single-site missence mutations on an example target sequence, from the directory `./test_data/`, run:
-```bash
-rsalor ./6acv_A_29-94.fasta ./6acv_A_29-94.pdb A -o ./6acv_A_29-rsalor.csv
-```
-
 ## Requirements
 
 - Python 3.9 or later
-- Python packages `numpy` ans `biopython` (version 1.75 or later)
+- Python packages `numpy` and `biopython` (version 1.75 or later)
 - A C++ compiler that supports C++11 (such as GCC)
 
 ## Short description
 
-The `rsalor` package combines structural data (Relative Solvent Accessibility, RSA) and evolutionary data (Log Odd Ratio, LOR from MSA) to evaluate missense mutations in proteins.
+The `rsalor` package combines structural data (Relative Solvent Accessibility, RSA) and evolutionary data (Log Odd Ratio, LOR from MSA) to evaluate effects of missense mutations in proteins.
 
 It parses a Multiple Sequence Alignment (MSA), removes redundant sequences, and assigns a weight to each sequence based on sequence identity clustering. The package then computes the weighted Log Odd Ratio (LOR) and Log Ratio (LR) for each single missense mutation. Additionally, it calculates the Relative Solvent Accessibility (RSA) for each residue and combines the LOR/LR and RSA scores, as described in the reference paper. The package resolves discrepancies between the MSA's target sequence and the protein structure (e.g., missing residues in structure) by aligning the PDB structure with the MSA target sequence.
 
