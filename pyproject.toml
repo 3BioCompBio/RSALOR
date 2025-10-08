@@ -1,0 +1,39 @@
+
+# Pip Build Setup --------------------------------------------------------------
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# Pip Package Metadata ---------------------------------------------------------
+[project]
+name = "rsalor"
+version = "1.1.4"
+description = "Combines structural data (Relative Solvent Accessibility, RSA) and evolutionary data (Log Odd Ratio, LOR from MSA) to evaluate missense mutations in proteins."
+readme = "README.md"
+authors = [
+  { name = "Matsvei Tsishyn", email = "matsvei.tsishyn@protonmail.com" }
+]
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE"]
+dependencies = [
+  "numpy",
+  "biopython>=1.75"
+]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: C++",
+  "Programming Language :: C",
+  "Operating System :: OS Independent",
+  "Topic :: Scientific/Engineering :: Bio-Informatics"
+]
+urls = { Homepage = "https://github.com/3BioCompBio/RSALOR" }
+
+# Entry Points for CLI ---------------------------------------------------------
+[project.scripts]
+rsalor = "rsalor.cli:main"
+
+# Setup pip Package ------------------------------------------------------------
+# this finds all the python packages recursively
+[tool.setuptools]
+packages = { find = {} }
