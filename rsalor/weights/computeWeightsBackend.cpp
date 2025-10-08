@@ -35,7 +35,7 @@ extern "C" float* computeWeightsBackend(
     // Allocate memory to the weights pointer because it will be passed to python
     float* weight_ptr = (float*)malloc(msa_depth*sizeof(float));
     auto weights_ptr_local = msa.getWeightsPointer();
-    for(int i = 0; i < msa_depth; i++) { // Copy content from local
+    for(unsigned int i = 0; i < msa_depth; i++) { // Copy content from local
         weight_ptr[i]= weights_ptr_local[i];
     }
     return weight_ptr;
