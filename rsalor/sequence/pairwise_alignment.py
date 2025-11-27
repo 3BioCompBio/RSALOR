@@ -2,6 +2,7 @@
 # Imports ----------------------------------------------------------------------
 import os.path
 from typing import List, Tuple, Dict, Union
+import Bio
 from Bio.Align import PairwiseAligner
 from rsalor.sequence import Sequence
 
@@ -61,18 +62,33 @@ class PairwiseAlignment:
         self.aligner.mode = 'global'
         self.aligner.match_score = match_score
         self.aligner.mismatch_score = mismatch_score
-        self.aligner.target_internal_open_gap_score = open_gap_score
-        self.aligner.target_internal_extend_gap_score = extend_gap_score
-        self.aligner.target_right_open_gap_score = tail_gap_score
-        self.aligner.target_right_extend_gap_score = tail_gap_score
-        self.aligner.target_left_open_gap_score = tail_gap_score
-        self.aligner.target_left_extend_gap_score = tail_gap_score
-        self.aligner.query_internal_open_gap_score = open_gap_score * query_insertion_multiplier
-        self.aligner.query_internal_extend_gap_score = extend_gap_score * query_insertion_multiplier
-        self.aligner.query_left_open_gap_score = tail_gap_score
-        self.aligner.query_left_extend_gap_score = tail_gap_score
-        self.aligner.query_right_open_gap_score = tail_gap_score
-        self.aligner.query_right_extend_gap_score = tail_gap_score
+        # just because biopython decies to change its interface syntax each week ...
+        if version_is_greater_than(Bio.__version__, "1.85"):
+            self.aligner.open_internal_insertion_score = open_gap_score
+            self.aligner.extend_internal_insertion_score = extend_gap_score
+            self.aligner.open_right_insertion_score = tail_gap_score
+            self.aligner.extend_right_insertion_score = tail_gap_score
+            self.aligner.open_left_insertion_score = tail_gap_score
+            self.aligner.extend_left_insertion_score = tail_gap_score
+            self.aligner.open_internal_deletion_score = open_gap_score * query_insertion_multiplier
+            self.aligner.extend_internal_deletion_score = extend_gap_score * query_insertion_multiplier
+            self.aligner.open_left_deletion_score = tail_gap_score
+            self.aligner.extend_left_deletion_score = tail_gap_score
+            self.aligner.open_right_deletion_score = tail_gap_score
+            self.aligner.extend_right_deletion_score = tail_gap_score
+        else:
+            self.aligner.target_internal_open_gap_score = open_gap_score
+            self.aligner.target_internal_extend_gap_score = extend_gap_score
+            self.aligner.target_right_open_gap_score = tail_gap_score
+            self.aligner.target_right_extend_gap_score = tail_gap_score
+            self.aligner.target_left_open_gap_score = tail_gap_score
+            self.aligner.target_left_extend_gap_score = tail_gap_score
+            self.aligner.query_internal_open_gap_score = open_gap_score * query_insertion_multiplier
+            self.aligner.query_internal_extend_gap_score = extend_gap_score * query_insertion_multiplier
+            self.aligner.query_left_open_gap_score = tail_gap_score
+            self.aligner.query_left_extend_gap_score = tail_gap_score
+            self.aligner.query_right_open_gap_score = tail_gap_score
+            self.aligner.query_right_extend_gap_score = tail_gap_score
 
         # Align
         alignments = self.aligner.align(self.sequence1.sequence, self.sequence2.sequence)
@@ -265,3 +281,12 @@ def _count_tail_characters(input_sequence: str, count_char: str) -> Tuple[int, i
         else:
             break
     return c1, c2
+
+def version_is_greater_than(v1: str, v2: str, fallback_values: bool=False) -> bool:
+    """Return if version v1 is greater than v2 or fallback_values if versions parsing has failed."""
+    try:
+        v1_list = [int(vi) for vi in v1.split(".")]
+        v2_list = [int(vi) for vi in v2.split(".")]
+        return v1_list > v2_list
+    except:
+        return fallback_values
