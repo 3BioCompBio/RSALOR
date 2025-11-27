@@ -4,6 +4,7 @@ recursive-include rsalor/weights *.cpp
 
 # Exclude files and directories that should not be in the package
 exclude Logo.png
+exclude colab_notebook_RSALOR.ipynb
 exclude fig/*
 exclude src/*
 exclude tmp/*
