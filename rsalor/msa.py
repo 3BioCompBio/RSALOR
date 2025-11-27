@@ -687,7 +687,7 @@ class MSA:
 
         return dE_arr
     
-    def get_scores(self, round_digit: Union[None, int]=None, log_results: bool=False,) -> List[dict]:
+    def get_scores(self, round_digit: Union[None, int]=6, log_results: bool=False,) -> List[dict]:
         """Compute scores (gap_freq, wt_freq, mt_freq, RSA, LOR, RSA*LOR, ...) for each single-site mutation.
 
         NOTE: mutation are indicated in 3 different references:
