@@ -1,7 +1,8 @@
 
 # RSALOR
 
-[![PyPi Version](https://img.shields.io/pypi/v/rsalor.svg)](https://pypi.org/project/rsalor/) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+[![PyPi Version](https://img.shields.io/pypi/v/rsalor.svg)](https://pypi.org/project/rsalor/) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](
+https://colab.research.google.com/github/3BioCompBio/RSALOR/blob/main/colab_notebook_RSALOR.ipynb)
 <div style="text-align: center;">
 <img src="Logo.png" alt="[RSALOR Logo]" height="300"/>
 </div>
@@ -16,6 +17,8 @@ It computes the `RSA*LOR` score for each single-site missense mutation in a targ
 
 
 ## Installation and Usage
+
+You can instantly try RSALOR in this [Colab Notebook](https://colab.research.google.com/github/3BioCompBio/RSALOR/blob/main/colab_notebook_RSALOR.ipynb).
 
 Installation with `pip`:
 ```bash
