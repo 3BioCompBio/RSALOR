@@ -756,9 +756,10 @@ class MSA:
 
         # Log
         if log_results:
+            show_n_entries = 25
             scores_csv = CSV(list(scores[0].keys()), name=self.name)
-            scores_csv.add_entries(scores[0:40])
-            scores_csv.show(n_entries=40, max_colsize=23)
+            scores_csv.add_entries(scores[0:show_n_entries])
+            scores_csv.show(n_entries=show_n_entries, max_colsize=23)
 
         return scores
     
