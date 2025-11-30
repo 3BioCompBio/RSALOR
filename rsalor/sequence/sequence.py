@@ -23,18 +23,31 @@ class Sequence:
     AMINO_ACIDS_IDENTITY_MAP = {aa.one: aa.one for aa in AminoAcid.get_all()} | {aa.one.lower(): aa.one.lower() for aa in AminoAcid.get_all()}
 
     # Constructor --------------------------------------------------------------
-    def __init__(self, name: str, sequence: str, weight: float=1.0, to_upper: bool=True, convert_special_characters: bool=True):
+    def __init__(
+            self,
+            name: str,
+            sequence: str,
+            weight: float=1.0,
+            to_upper: bool=True,
+            remove_lower_case: bool=False,
+            convert_special_characters: bool=True
+        ):
         """Constructor for a (protein) Sequence object.
             name                         (str)         name of the sequence
             sequence                     (str)         amino acid sequence as a string
             weight                       (float=1.0)   weight of the sequence (in an MSA)
             to_upper                     (bool=True)   if True, convert all lower case amino acids to upper cases (such as in '.a2m' format)
-            convert_special_characters   (bool=True)   if True, convert all non-standard characters (like '.' or '_') to a gap '-' (such as in '.a2m' format)
+            remove_lower_case            (bool=False)  if True, remove all lower case amino acids (such as in '.a3m' format to align sequences)
+            convert_special_characters   (bool=True)   if True, convert all non-standard characters (like '.' or '_') to a gap '-' (such as in '.a2m' or '.a3m' format)
         """
+        if to_upper and remove_lower_case:
+            raise ValueError(f"ERROR in Sequence(): inconsistent settings to_upper=True and remove_lower_case=True (both can not be True at the same time).")
         if name.startswith(self.HEADER_START_CHAR):
             name = name.removeprefix(self.HEADER_START_CHAR)
         if to_upper:
             sequence = sequence.upper()
+        if remove_lower_case:
+            sequence = "".join(c for c in sequence if not c.islower())
         if convert_special_characters:
             gap = self.GAP_CHAR
             aa_map = self.AMINO_ACIDS_IDENTITY_MAP

@@ -39,7 +39,7 @@ def main():
 
     parser.add_argument(
         "msa_path", type=str,
-        help="path to MSA '.fasta' or '.a2m' file",
+        help="path to MSA '.fasta', '.a2m' or '.a3m' file",
     )
 
     parser.add_argument(

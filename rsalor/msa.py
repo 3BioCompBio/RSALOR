@@ -68,7 +68,7 @@ class MSA:
 
     ----------------------------------------------------------------------------
     Main arguments:
-      msa_path (str)                            path to MSA '.fasta' or '.a2m' file (file can be zipped with '.gz')
+      msa_path (str)                            path to MSA '.fasta', '.a2m' or '.a3m' file (file can be zipped with '.gz')
 
     Structure arguments:
       pdb_path (None | str, None)               path to PDB '.pdb' file (leave empty to ignore structure)

@@ -65,7 +65,7 @@ class FastaStream:
     """
 
     # Constants ----------------------------------------------------------------
-    ACCEPTED_EXTENTIONS = ["fasta", "a2m", "fasta.gz", "a2m.gz"]
+    ACCEPTED_EXTENTIONS = ["fasta", "a2m", "a3m", "fasta.gz", "a2m.gz", "a3m.gz"]
     HEADER_START_CHAR = Sequence.HEADER_START_CHAR
 
     # Constructor --------------------------------------------------------------
@@ -75,6 +75,15 @@ class FastaStream:
         assert os.path.isfile(fasta_path), f"ERROR in FastaStream(): fasta_path='{fasta_path}' does not exists."
         if not any([fasta_path.endswith(f".{ext}") for ext in self.ACCEPTED_EXTENTIONS]):
             raise  ValueError(f"ERROR in FastaStream(): fasta_path='{fasta_path}' should end with {self.ACCEPTED_EXTENTIONS}.")
+
+        # Init reader mode
+        #  -> base case (fasta or a2m): lower case amino acids are converted as upper case
+        self.to_upper = True
+        self.remove_lower_case = False
+        if fasta_path.endswith("a3m"):
+            #  -> a3m case: lower case amino acids are removed
+            self.to_upper = False
+            self.remove_lower_case = True
 
         # Init
         self.fasta_path = fasta_path
@@ -115,7 +124,7 @@ class FastaStream:
             self.current_line = self._next_line()
 
         seq = "".join(seq_arr)
-        return Sequence(header, seq)
+        return Sequence(header, seq, to_upper=self.to_upper, remove_lower_case=self.remove_lower_case)
     
     def get_all(self) -> List[Sequence]:
         """Get all remaining Fasta sequences."""
