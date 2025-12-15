@@ -342,6 +342,7 @@ class MSA:
         self.fasta_trimmed_to_pdb: Dict[str, str] = {}
         self.rsa_array: List[Union[None, float]] = [None for _ in range(self.length)]
         self.rsa_factor_array: List[Union[None, float]] = [None for _ in range(self.length)]
+        self.plddt_array: List[Union[None, float]] = [None for _ in range(self.length)]
         if self.structure is None:
             return None
         
@@ -361,6 +362,7 @@ class MSA:
                 self.pdb_to_fasta_trimmed[residue.resid] = fasta_trimmed_id
                 self.fasta_trimmed_to_pdb[fasta_trimmed_id] = residue.resid
                 self.rsa_array[i_fasta_trimmed] = residue.rsa
+                self.plddt_array[i_fasta_trimmed] = residue.plddt
                 if residue.rsa is None:
                     n_no_rsa += 1
             if aa_pdb != self.GAP_CHAR:
@@ -712,6 +714,7 @@ class MSA:
             resid_pdb = self.fasta_trimmed_to_pdb.get(resid_fasta_trimmed, None)
             RSA = self.rsa_array[i]
             RSA_factor = self.rsa_factor_array[i]
+            pLDDT = self.plddt_array[i]
             CI = self.CI[i]
             gap_freq = self.gap_frequencies[i]
             wt_freq = self.frequencies[i, wt_i]
@@ -739,6 +742,7 @@ class MSA:
                     "mt_freq": mt_freq,
                     "CI": CI,
                     "RSA": RSA,
+                    "pLDDT": pLDDT,
                     "LOR": LOR,
                     "LR": LR,
                     "RSA*LOR": RSALOR,
@@ -749,7 +753,7 @@ class MSA:
         # Round float values if required
         if round_digit is not None:
             for score in scores:
-                for prop in ["gap_freq", "wt_freq", "mt_freq", "CI", "RSA", "LOR", "LR", "RSA*LOR", "RSA*LR"]:
+                for prop in ["gap_freq", "wt_freq", "mt_freq", "CI", "RSA", "pLDDT", "LOR", "LR", "RSA*LOR", "RSA*LR"]:
                     val = score[prop]
                     if val is not None:
                         score[prop] = round(val, round_digit)

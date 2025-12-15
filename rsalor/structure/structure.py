@@ -129,7 +129,8 @@ class Structure:
                         continue
                     resid = current_chain + position
                     if resid not in self.residues_map:
-                        residue = Residue(current_chain, position, aa)
+                        plddt = float(line[60:66])
+                        residue = Residue(current_chain, position, aa, plddt=plddt)
                         self.residues.append(residue)
                         self.residues_map[resid] = residue
                 

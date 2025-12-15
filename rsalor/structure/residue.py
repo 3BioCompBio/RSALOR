@@ -12,7 +12,14 @@ class Residue:
     """
 
     # Constructor --------------------------------------------------------------
-    def __init__(self, chain: str, position: str, amino_acid: AminoAcid, rsa: Union[None, float]=None):
+    def __init__(
+            self,
+            chain: str,
+            position: str,
+            amino_acid: AminoAcid,
+            rsa: Union[None, float]=None,
+            plddt: Union[None, float]=None,
+        ):
 
         # Guardians
         assert len(chain) == 1 and chain != " ", f"ERROR in Residue(): invalid chain='{chain}'."
@@ -24,6 +31,7 @@ class Residue:
         self.position: str = position
         self.amino_acid: AminoAcid = amino_acid
         self.rsa: Union[None, float] = rsa
+        self.plddt: Union[None, float] = plddt
 
     # Properties ---------------------------------------------------------------
     @property
@@ -31,4 +39,4 @@ class Residue:
         return self.chain + self.position
 
     def __str__(self) -> str:
-        return f"Residue('{self.resid}', '{self.amino_acid.three}', RSA={self.rsa})"
+        return f"Residue('{self.resid}', '{self.amino_acid.three}', RSA={self.rsa}, pLDDT={self.plddt})"
