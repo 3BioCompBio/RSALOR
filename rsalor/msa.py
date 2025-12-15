@@ -712,6 +712,11 @@ class MSA:
             resid_fasta_trimmed = str(i+1)
             resid_fasta = self.fasta_trimmed_to_fasta[resid_fasta_trimmed]
             resid_pdb = self.fasta_trimmed_to_pdb.get(resid_fasta_trimmed, None)
+            warning = ""
+            if resid_pdb is None:
+                warning = "missing structure"
+            elif wt != self.structure.residues_map[resid_pdb].amino_acid.one:
+                warning = "mismatch structure"
             RSA = self.rsa_array[i]
             RSA_factor = self.rsa_factor_array[i]
             pLDDT = self.plddt_array[i]
@@ -747,6 +752,7 @@ class MSA:
                     "LR": LR,
                     "RSA*LOR": RSALOR,
                     "RSA*LR": RSALR,
+                    "warning": warning,
                 }
                 scores.append(score)
 
