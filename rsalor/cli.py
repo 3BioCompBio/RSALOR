@@ -175,4 +175,5 @@ def main():
         args.output_path,
         round_digit=6,
         sep=args.sep,
+        log_results=True,
     )

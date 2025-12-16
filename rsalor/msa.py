@@ -689,7 +689,12 @@ class MSA:
 
         return dE_arr
     
-    def get_scores(self, round_digit: Union[None, int]=6, log_results: bool=False,) -> List[dict]:
+    def get_scores(
+            self,
+            round_digit: Union[None, int]=6,
+            log_results: bool=False,
+            n_output_sample_lines: int=10,
+        ) -> List[dict]:
         """Compute scores (gap_freq, wt_freq, mt_freq, RSA, LOR, RSA*LOR, ...) for each single-site mutation.
 
         NOTE: mutation are indicated in 3 different references:
@@ -766,10 +771,9 @@ class MSA:
 
         # Log
         if log_results:
-            show_n_entries = 25
             scores_csv = CSV(list(scores[0].keys()), name=self.name)
-            scores_csv.add_entries(scores[0:show_n_entries])
-            scores_csv.show(n_entries=show_n_entries, max_colsize=23)
+            scores_csv.add_entries(scores[0:n_output_sample_lines])
+            scores_csv.show(n_entries=n_output_sample_lines, max_colsize=23)
 
         return scores
     
@@ -779,7 +783,8 @@ class MSA:
             round_digit: Union[None, int]=None,
             sep: str=";",
             missing_value: Union[None, str]="XXX",
-            log_results: bool=False
+            log_results: bool=False,
+            n_output_sample_lines: int=10,
         ) -> List[dict]:
         """Compute scores (gap_freq, wt_freq, mt_freq, RSA, LOR, RSA*LOR, ...) for each single-site mutation and save it to scores_path as a '.csv' file.
 
@@ -814,7 +819,7 @@ class MSA:
 
         # Log
         if log_results:
-            scores_csv.show(n_entries=40, max_colsize=23)
+            scores_csv.show(n_entries=n_output_sample_lines, max_colsize=23)
 
         # Save and return
         if scores_path is not None:
