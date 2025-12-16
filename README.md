@@ -18,13 +18,31 @@ It computes the `RSA*LOR` score for each single-site missense mutation in a targ
 
 ## Installation and Usage
 
-You can instantly try RSALOR in this [Colab Notebook](https://colab.research.google.com/github/3BioCompBio/RSALOR/blob/main/colab_notebook_RSALOR.ipynb).
+### Execute RSALOR in Colab Notebook
 
+You can instantly try RSALOR in this [Colab Notebook](https://colab.research.google.com/github/3BioCompBio/RSALOR/blob/main/colab_notebook_RSALOR.ipynb).
+This notebook acts as a **user-friendly web server**, offering built-in helpers to **automatically fetch or generate the MSA and 3D structure** for your target protein.
+You can then **visualize** your mutational predictions either as a DMS heatmap or mapped to the 3D structure.
+
+### Installation
 Installation with `pip`:
 ```bash
 pip install rsalor
 ```
 
+### CLI usage
+You can run the `rsalor` package with a Command Line Interface (CLI).
+To compute scores for all single-site missense mutations on an example target sequence, from the directory `./test_data/`, run:
+```bash
+rsalor ./6acv_A_29-94.fasta ./6acv_A_29-94.pdb A -o ./6acv_A_29-rsalor.csv
+```
+
+To show CLI usage and optional arguments, run:
+```bash
+rsalor -h
+```
+
+### Python usage
 Make sure the first sequence in your MSA file is the target sequence to mutate.  
 From directory `./test_data/` execute the following Python code:
 ```python
@@ -48,17 +66,6 @@ scores = msa.get_scores() # [{'mutation_fasta': 'S1A', 'mutation_pdb': 'SA1A', '
 
 # Or directly save scores to a CSV file
 msa.save_scores("./6acv_A_29-94_scores.csv", sep=";")
-```
-
-Alternatively, you can run the `rsalor` package with a Command Line Interface (CLI).
-To compute scores for all single-site missense mutations on an example target sequence, from the directory `./test_data/`, run:
-```bash
-rsalor ./6acv_A_29-94.fasta ./6acv_A_29-94.pdb A -o ./6acv_A_29-rsalor.csv
-```
-
-To show CLI usage and optional arguments, run:
-```bash
-rsalor -h
 ```
 
 ## Requirements
