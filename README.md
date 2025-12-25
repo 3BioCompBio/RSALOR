@@ -11,9 +11,9 @@ The `rsalor` package combines structural data (Relative Solvent Accessibility, R
 It computes the `RSA*LOR` score for each single-site missense mutation in a target protein by combining multiple computational steps into a fast and user-friendly tool.
 
 **Please cite**:
-- [Matsvei Tsishyn, Pauline Hermans, Fabrizio Pucci, Marianne Rooman (2025). Residue conservation and solvent accessibility are (almost) all you need for predicting mutational effects in proteins. Bioinformatics, btaf322](https://doi.org/10.1093/bioinformatics/btaf322).
+- [Matsvei Tsishyn, Pauline Hermans, Marianne Rooman, Fabrizio Pucci (2025). Residue conservation and solvent accessibility are (almost) all you need for predicting mutational effects in proteins. Bioinformatics, 41(6), btaf322](https://doi.org/10.1093/bioinformatics/btaf322).
 
-- [Pauline Hermans, Matsvei Tsishyn, Martin Schwersensky, Marianne Rooman, Fabrizio Pucci (2024). Exploring evolution to uncover insights into protein mutational stability. Molecular Biology and Evolution, 42(1), msae267](https://doi.org/10.1093/molbev/msae267).
+- [Pauline Hermans, Matsvei Tsishyn, Martin Schwersensky, Marianne Rooman, Fabrizio Pucci (2025). Exploring evolution to uncover insights into protein mutational stability. Molecular Biology and Evolution, 42(1), msae267](https://doi.org/10.1093/molbev/msae267).
 
 
 ## Installation and Usage
