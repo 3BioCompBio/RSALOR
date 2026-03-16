@@ -10,6 +10,8 @@ https://colab.research.google.com/github/3BioCompBio/RSALOR/blob/main/colab_note
 The `rsalor` package combines structural data (Relative Solvent Accessibility, RSA) and evolutionary data (Log Odd Ratio, LOR from MSA) to evaluate effects of missense mutations in proteins.
 It computes the `RSA*LOR` score for each single-site missense mutation in a target protein by combining multiple computational steps into a fast and user-friendly tool.
 
+**Note:** See also our epistatic model [StructureDCA](https://github.com/3BioCompBio/StructureDCA).
+
 **Please cite**:
 - [Matsvei Tsishyn, Pauline Hermans, Marianne Rooman, Fabrizio Pucci (2025). Residue conservation and solvent accessibility are (almost) all you need for predicting mutational effects in proteins. Bioinformatics, 41(6), btaf322](https://doi.org/10.1093/bioinformatics/btaf322).
 
