@@ -55,8 +55,8 @@ from rsalor import MSA
 MSA.help()
 
 # Initialize MSA
-msa_path = "./6acv_A_29-94.fasta"
-pdb_path = "./6acv_A_29-94.pdb"
+msa_path = "./6acv_A_29-94.fasta" # in .fasta, .a2m or .a3m format
+pdb_path = "./6acv_A_29-94.pdb" # in .pdb or .cif format
 chain = "A"
 msa = MSA(msa_path, pdb_path, chain, num_threads=8, verbose=True)
 

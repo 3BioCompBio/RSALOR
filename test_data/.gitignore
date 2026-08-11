@@ -1,0 +1,7 @@
+# Ignore everything
+*
+
+# But not these files
+!.gitignore
+!6acv_A_29-94.fasta
+!6acv_A_29-94.pdb

@@ -174,7 +174,7 @@ class AminoAcid:
         self.name: str = aa_metadata[3]
 
     @classmethod
-    def parse_three(cls, aa_three: int) -> "AminoAcid":
+    def parse_three(cls, aa_three: str) -> "AminoAcid":
         """Parse an AminoAcid from its three-letter-code (can handle non-standard AAs and mapping to corresponding standard AA)."""
 
         # Standard case

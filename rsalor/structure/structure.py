@@ -1,87 +1,142 @@
 
 # Imports ----------------------------------------------------------------------
-import os.path
-from typing import Union, List, Dict, Literal
+import os
+import gzip
+import warnings
+from typing import Union, List, Dict
+from Bio.PDB import PDBParser, MMCIFParser
+from Bio.PDB.Polypeptide import PPBuilder
+from Bio.PDB.Structure import Structure as BPStructure
+from Bio.PDB.Model import Model as BPModel
+from Bio.PDB.Chain import Chain as BPChain
+from Bio.PDB.Residue import Residue as BPResidue
+from Bio.PDB.SASA import ShrakeRupley
 from rsalor.sequence import AminoAcid
 from rsalor.structure import Residue
 from rsalor.sequence import Sequence
-from rsalor.rsa import RSASolver, RSABiopython, RSADSSP, RSAMuSiC
+from rsalor.utils import Logger
+
 
 # Execution --------------------------------------------------------------------
 class Structure:
-    """Structure object for parsing all Residues from ATOM lines and assign RSA (with biopython (Shrake & Rupley), DSSP or MuSiC).
+    """Structure object for parsing Residues from ATOM lines and assign RSA (using Shrake & Rupley).
+    - rely on biopython parser
+    - accepts .pdb and .cif files
+    - accepts .gz compressed files
 
     usage:
     structure = Structure('./my_pdb.pdb', 'A')
     """
 
+
     # Constants ----------------------------------------------------------------
-    RSA_SOLVERS: Dict[str, RSASolver] = {
-        "biopython": RSABiopython,
-        "DSSP": RSADSSP,
-        "MuSiC": RSAMuSiC,
+    
+    # Base properties
+    ACCEPTED_EXTENTIONS = [
+        "pdb", "cif",
+        "pdb.gz", "cif.gz",
+    ]
+
+    # Knowledge based
+    # Maps aa-types to knowledge-based maximum surface area
+    # Taken from https://pmc.ncbi.nlm.nih.gov/articles/PMC3836772/#pone-0080635-t001
+    MAX_SURFACE_MAP = {
+        "ALA": 1.29,
+        "ARG": 2.74,
+        "ASN": 1.95,
+        "ASP": 1.93,
+        "CYS": 1.67,
+        "GLN": 2.23,
+        "GLU": 2.25,
+        "GLY": 1.04,
+        "HIS": 2.24,
+        "ILE": 1.97,
+        "LEU": 2.01,
+        "LYS": 2.36,
+        "MET": 2.24,
+        "PHE": 2.40,
+        "PRO": 1.59,
+        "SER": 1.55,
+        "THR": 1.55,
+        "TRP": 2.85,
+        "TYR": 2.63,
+        "VAL": 1.74,
     }
+    MAX_SURFACE_DEFAULT = 2.01 # mean value
+
 
     # Constructor --------------------------------------------------------------
     def __init__(
             self,
             pdb_path: str,
-            chain: str,
-            rsa_solver: Literal["biopython", "DSSP", "MuSiC"]="biopython",
-            rsa_solver_path: Union[None, str]=None,
+            chain: Union[str, None],
+            rsa_solver=None, # deprecated, kept to not break existing codes
+            rsa_solver_path=None, # deprecated, kept to not break existing codes
             rsa_cache_path: Union[None, str]=None,
-            verbose: bool=False,
+            verbose: Union[bool, Logger]=False,
         ):
-        """Structure object for parsing all Residues from ATOM lines and assign RSA (with biopython, DSSP or MuSiC).
+        """Structure object for parsing Residues from ATOM lines and assign RSA (using Shrake & Rupley).
 
-        arguments:
-        pdb_path (str):                                   path to PDB file
-        chain (str):                                      target chain in the PDB
-        rsa_solver ('biopython'/'DSSP'/'MuSiC'):          solver to use to compute RSA
-        rsa_solver_path (Union[None, str]=None):          path to solver executable
-        rsa_cache_path (Union[None, str]=None):           path to write/read to/from RSA values
-        verbose (bool=False):                             set True for logs
+        Arguments:
+            pdb_path (str):                                   path to PDB file
+            chain (str | None):                               target chain in the PDB (or None to ignore)
+            rsa_cache_path (None | str=None):                 path to write/read to/from RSA values
+            verbose (bool=False):                             set True for logs or provide Logger instance
         """
+
+        # Init logger
+        if isinstance(verbose, Logger):
+            self.logger = verbose
+        else:
+            self.logger = Logger(verbose=bool(verbose), disable_warnings=not verbose)
 
         # Guardians
         assert os.path.isfile(pdb_path), f"ERROR in Structure(): pdb_path='{pdb_path}' file does not exist."
-        assert pdb_path.endswith(".pdb"), f"ERROR in Structure(): pdb_path='{pdb_path}' should end with '.pdb'."
-        assert len(chain) == 1 and chain != " ", f"ERROR in Structure(): chain='{chain}' should be a string of length 1 and not ' '."
-        solver_list = list(self.RSA_SOLVERS.keys())
-        assert rsa_solver in solver_list, f"ERROR in Structure(): rsa_solver='{rsa_solver}' should be in {solver_list}."
+        if not any([pdb_path.endswith(f".{ext}") for ext in self.ACCEPTED_EXTENTIONS]):
+            raise ValueError(f"ERROR in Structure(): pdb_path='{pdb_path}' should end with any of {self.ACCEPTED_EXTENTIONS}.")
+        if chain is not None:
+            assert len(chain) == 1 and chain != " ", f"ERROR in Structure(): chain='{chain}' should be a string of length 1 and not ' '."
+
+        # Deprecation warning
+        if rsa_solver is not None or rsa_solver_path is not None:
+            self.logger.warning(
+                "Parameters <rsa_solver> and <rsa_solver_path> are deprecated: \n"
+                " -> they are ignored and only BioPython is used to resolve RSA."
+            )
 
         # Init base properties
         self.pdb_path = pdb_path
-        self.pdb_name = os.path.basename(self.pdb_path).removesuffix(".pdb")
+        for ext in self.ACCEPTED_EXTENTIONS:
+            if self.pdb_path.endswith(f".{ext}"):
+                self.pdb_ext = ext
+                self.pdb_name = os.path.basename(self.pdb_path).removesuffix(f".{ext}")
+                break
         self.chain = chain
-        self.name = f"{self.pdb_name}_{self.chain}"
-        self.rsa_solver = rsa_solver
-        self.rsa_solver_path = rsa_solver_path
-        self.verbose = verbose
+        if chain is not None:
+            self.name = f"{self.pdb_name}_{self.chain}"
+        else:
+            self.name = self.pdb_name
+        self.rsa_solver = None # deprecated, kept to not break existing codes
+        self.rsa_solver_path = None # deprecated, kept to not break existing codes
+        self.rsa_cache_path = rsa_cache_path
+        self.verbose = self.logger.verbose
 
         # Parse structure
+        self.logger.log(f" * parse 3D structure")
         self.residues: List[Residue] = []
         self.chain_residues: List[Residue] = []
         self.residues_map: Dict[str, Residue] = {}
         self._parse_structure()
 
         # Set sequence
-        self.sequence = Sequence(f"{self.name} (PDB, ATOM-lines)", "".join(res.amino_acid.one for res in self.chain_residues))
-
-        # Assign RSA
-        solver: RSASolver = self.RSA_SOLVERS[rsa_solver]
-        rsa_map = solver(self.rsa_solver_path, self.verbose).run(self.pdb_path, rsa_cache_path=rsa_cache_path)
-        n_assigned_in_chain = 0
-        for residue in self.residues:
-            resid = residue.resid
-            if resid in rsa_map:
-                if residue.chain == self.chain:
-                    n_assigned_in_chain += 1
-                residue.rsa = rsa_map[resid]
+        self.sequence = Sequence(
+            f"{self.name} (PDB, ATOM-lines)",
+            "".join(res.amino_acid.one for res in self.chain_residues)
+        )
 
         # Log
-        if self.verbose:
-            print(f" * {n_assigned_in_chain} / {len(self.chain_residues)} assigned RSA values for chain '{self.chain}'")
+        n_assigned_in_chain = sum(isinstance(residue.rsa, float) for residue in self.chain_residues)
+        self.logger.log(f" * {n_assigned_in_chain} / {len(self.chain_residues)} assigned RSA values for chain '{self.chain}'")
 
 
     # Base properties ----------------------------------------------------------
@@ -99,63 +154,166 @@ class Structure:
     
     def __iter__(self):
         return iter(self.residues)
-    
-    # Deendencies --------------------------------------------------------------
+
+
+    # RSA cache -----------------------------------------------------------------
+    def read_rsa_map(self, file_path: str) -> Dict[str, Union[float, None]]:
+        """Read rsa_map cache file and return RSA mapping: {resid: str => RSA: float}."""
+
+        # Guardians
+        if not os.path.isfile(file_path):
+            raise FileNotFoundError(f"ERROR in {self}.read_rsa_map(): RSA cache file file_path='{file_path}' does not exist.")
+
+        # Parse and return
+        COMMENT_CHAR = "#"
+        rsa_map: Dict[str, Union[float, None]] = {}
+        with open(file_path, "r") as fs:
+            lines = [line.split() for line in fs.readlines() if len(line) >= 3 and line[0] != COMMENT_CHAR]
+        for line in lines:
+            if len(line) < 2: continue
+            resid, rsa = line[0], line[1]
+            rsa_map[resid] = float(rsa)
+
+        # Guardian and return
+        assert len(rsa_map) > 0, f"ERROR in {self}.read(): No RSA data found in file_path='{file_path}'."
+        return rsa_map
+
+    def get_rsa_map(self) -> Dict[str, Union[float, None]]:
+        """Get RSA mapping: {resid: str => RSA: float}."""
+        return {res.resid: res.rsa for res in self.residues}
+        
+    def write_rsa_map(self, file_path: str) -> None:
+        """Write rsa_map to a cache file."""
+
+        # Init file system
+        dir_path = os.path.dirname(file_path)
+        if not os.path.isdir(dir_path):
+            os.mkdir(dir_path)
+
+        # Compute
+        rsa_map = self.get_rsa_map()
+        rsa_map_str = "\n".join(f"{resid} {rsa}" for resid, rsa in rsa_map.items()) + "\n"
+
+        # Write
+        with open(file_path, "w") as fs:
+            fs.write(rsa_map_str)
+
+
+    # Dependencies --------------------------------------------------------------
     def _parse_structure(self) -> None:
         """Parse residues data from PDB file."""
+
+        # Select parser
+        if self.pdb_path.endswith(".pdb") or self.pdb_path.endswith(".pdb.gz"):
+            pdb_parser = PDBParser(QUIET=True)
+        else:
+            pdb_parser = MMCIFParser(QUIET=True)
+
+        # Select file handler
+        if self.pdb_path.endswith(".gz"):
+            custom_open = gzip.open
+        else:
+            custom_open = open
+
+        # Parse structure with biopython
+        with custom_open(self.pdb_path, mode="rt", encoding="ISO-8859-1") as fs:
+            bp_structure: BPStructure = pdb_parser.get_structure(self.pdb_name, fs)
+        bp_model_0: BPModel = bp_structure[0] # consider only model 0
+
+        # Compute ASA
+        rsa_map = None
+        if self.rsa_cache_path is not None and os.path.isfile(self.rsa_cache_path):
+            self.logger.log(f" * read RSA values from rsa_cache_path '{self.rsa_cache_path}'")
+            rsa_map = self.read_rsa_map(self.rsa_cache_path)
+            for chain in bp_model_0: # guarantee residue.sasa property to avoid eventual bugs
+                for residue in chain:
+                    residue.sasa = None
+        else:
+            self.logger.log(f" * compute RSA values using Shrake & Rupley")
+            ShrakeRupley().compute(bp_model_0, level="R")
         
-        # Init
-        model_counter = 0
-        current_chain = None
-        closed_chains = set()
-
-        # Parse PDB residues
-        with open(self.pdb_path, "r", encoding="ISO-8859-1") as fs:
-            line = fs.readline()
-            while line:
-                prefix = line[0:6]
-                
-                # Atom line
-                if prefix == "ATOM  " or prefix == "HETATM":
-                    current_chain = line[21]
-                    if current_chain in closed_chains: # discard ATOM line if chain is closed
-                        line = fs.readline()
+        # Extract residues information
+        bp_chain: BPChain
+        bp_residue: BPResidue
+        n_residues_failed_to_parse = 0
+        warnings.filterwarnings("ignore", category=UserWarning, module="Bio.PDB.Polypeptide")
+        for bp_chain in bp_model_0:
+            peptides = PPBuilder().build_peptides(bp_chain, aa_only=0) # use PPBuilder to keep only protein chains and exclude ligands
+            for peptide in peptides:
+                for bp_residue in peptide:
+                    try:
+                        residue = self._parse_bp_residue(bp_residue, rsa_map)
+                    except:
+                        n_residues_failed_to_parse += 1
                         continue
-                    position = line[22:27].replace(" ", "")
-                    aa_three = line[17:20]
-                    aa = AminoAcid.parse_three(aa_three)
-                    if aa.is_unknown(): # discard non amino acid ATOM lines
-                        line = fs.readline()
-                        continue
-                    resid = current_chain + position
-                    if resid not in self.residues_map:
-                        plddt = float(line[60:66])
-                        residue = Residue(current_chain, position, aa, plddt=plddt)
-                        self.residues.append(residue)
-                        self.residues_map[resid] = residue
-                
-                # Manage multiple models: consider only model 1
-                elif prefix == "MODEL ":
-                    model_counter += 1
-                    if model_counter > 1:
-                        #print(f"WARNING in {self}: PDB contains multiple models, but only model 1 will be considered.")
-                        break
+                    self.residues.append(residue)
+                    self.residues_map[residue.resid] = residue
+                    if residue.chain == self.chain:
+                        self.chain_residues.append(residue)
 
-                # Manage closed chains: ATOMS that appears after the chain is closed are not part of the protein chain
-                elif prefix == "TER   " or prefix == "TER\n":
-                    if current_chain is not None:
-                        closed_chains.add(current_chain)
-                
-                # Take next line
-                line = fs.readline()
-        
-        # Set residues list of target chain
-        self.chain_residues = [res for res in self.residues if res.chain == self.chain]
+        # Error and warning
+        if self.chain is not None and len(self.chain_residues) == 0:
+            raise ValueError(
+                f"ERROR in {self}._parse_structure(): target chain '{self.chain}' not found in PDB file."
+                f"\n * pdb_path: '{self.pdb_path}'"
+                f"\n * num total residues: {len(self.residues)}"
+                f"\n * existing chains: {list(set([res.chain for res in self.residues]))}"
+            )
+        if n_residues_failed_to_parse > 0:
+            self.logger.warning(
+                f"failed to parse some residues from structure:"
+                f" {n_residues_failed_to_parse} / {n_residues_failed_to_parse + len(self.residues)}"
+            )
 
-        # No target chain error
-        if len(self.chain_residues) == 0:
-            error_log = f"ERROR in {self}._parse_structure(): target chain '{self.chain}' not found in PDB file."
-            error_log += f"\n * pdb_path: '{self.pdb_path}'"
-            error_log += f"\n * num total residues: {len(self.residues)}"
-            error_log += f"\n * existing chains: {list(set([res.chain for res in self.residues]))}"
-            raise ValueError(error_log)
+        # Write RSA cache
+        if self.rsa_cache_path is not None and not os.path.isfile(self.rsa_cache_path):
+            self.logger.log(f" * save RSA values to rsa_cache_path '{self.rsa_cache_path}'")
+            self.write_rsa_map(self.rsa_cache_path)
+
+    def _parse_bp_residue(
+            self,
+            bp_residue: BPResidue,
+            rsa_map: Union[None, Dict[str, Union[float, None]]]=None
+        ) -> Residue:
+        """Parse a Residue object from a BioPython Residue.
+        - parses RSA values from rsa_map if it is provided
+        - alternatively compute if from biopython SASA value
+        """
+        bp_chain: BPChain = bp_residue.get_parent()
+        chain_id = str(bp_chain.id)
+        position = str(bp_residue.id[1]) + str(bp_residue.id[2]).replace(" ", "")
+        resid = chain_id + position
+        amino_acid = AminoAcid.parse_three(str(bp_residue.get_resname()))
+        if rsa_map is not None:
+            rsa = rsa_map.get(resid, None)
+        else:
+            rsa = self._get_bp_residue_rsa(bp_residue)
+        plddt = self._get_bp_residue_plddt(bp_residue)
+        return Residue(chain_id, position, amino_acid, rsa=rsa, plddt=plddt)
+
+    def _get_bp_residue_rsa(self, bp_residue: BPResidue, ) -> Union[float, None]:
+        """Get RSA of a BioPython Residue
+        - using biopython assigned SASA and by-AA Max surface table
+        """
+        sasa = bp_residue.sasa
+        if sasa is None:
+            return None
+        aa_three = bp_residue.resname
+        aa_three_standardized = AminoAcid._NON_STANDARD_AAS.get(aa_three, aa_three)
+        max_surf = self.MAX_SURFACE_MAP.get(aa_three_standardized, self.MAX_SURFACE_DEFAULT)
+        return float(sasa) / max_surf
+
+    def _get_bp_residue_plddt(self, bp_residue: BPResidue) -> Union[float, None]:
+        """Get pLDDT (or B-factor) of a BioPython Residue.
+            First try to look at main backbone atoms N, CA or C;
+            then fall back to any other atom (in order of apparition).
+        """
+        if "N" in bp_residue:
+            return bp_residue["N"].bfactor
+        if "CA" in bp_residue:
+            return bp_residue["CA"].bfactor
+        if "C" in bp_residue:
+            return bp_residue["C"].bfactor
+        for atom in bp_residue.get_atoms():
+            return atom.bfactor
+        return None

@@ -44,7 +44,7 @@ def main():
 
     parser.add_argument(
         "pdb_path", type=str,
-        help="path to PDB '.pdb' file",
+        help="path to PDB '.pdb' or '.cif' file",
     )
 
     parser.add_argument(
@@ -127,7 +127,7 @@ def main():
     if args.output_path is None:
         output_dir = "./"
         msa_name:str = os.path.basename(args.msa_path)
-        for extention in MSA.ACCEPTED_EXTENTIONS:
+        for extention in MSA.ACCEPTED_MSA_EXTENTIONS:
             if msa_name.endswith(f".{extention}"):
                 msa_name = msa_name.removesuffix(f".{extention}")
                 break
@@ -159,8 +159,6 @@ def main():
         seqid_weights=args.seqid_weights,
         min_seqid=args.min_seqid,
         num_threads=args.num_threads,
-        #rsa_solver=args.rsa_solver,
-        #rsa_solver_path=args.rsa_solver_path,
         #trimmed_msa_path=args.trimmed_msa_path,
         #allow_msa_overwrite=args.allow_msa_overwrite,
         weights_cache_path=args.weights_cache_path,

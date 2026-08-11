@@ -25,7 +25,9 @@ class MSA:
 
 
     # Constants ----------------------------------------------------------------
-    ACCEPTED_EXTENTIONS = FastaStream.ACCEPTED_EXTENTIONS
+    ACCEPTED_MSA_EXTENTIONS = FastaStream.ACCEPTED_EXTENTIONS
+    ACCEPTED_PDB_EXTENTIONS = Structure.ACCEPTED_EXTENTIONS
+    ACCEPTED_EXTENTIONS = FastaStream.ACCEPTED_EXTENTIONS # keep this parameter for retro-compatibility
     N_STATES = len(AminoAcid.ONE_2_ID) + 1
     GAP_ID = N_STATES - 1
     GAP_CHAR = AminoAcid.GAP_ONE
@@ -47,8 +49,8 @@ class MSA:
             seqid_weights: Union[None, float]=0.80,
             min_seqid: Union[None, float]=0.35,
             num_threads: int=1,
-            rsa_solver: Literal["biopython", "DSSP", "MuSiC"]="biopython",
-            rsa_solver_path: Union[None, str]=None,
+            rsa_solver=None,
+            rsa_solver_path=None,
             trimmed_msa_path: Union[None, str]=None,
             allow_msa_overwrite: bool=False,
             weights_cache_path: Union[None, str]=None,
@@ -71,7 +73,7 @@ class MSA:
       msa_path (str)                            path to MSA '.fasta', '.a2m' or '.a3m' file (file can be zipped with '.gz')
 
     Structure arguments:
-      pdb_path (None | str, None)               path to PDB '.pdb' file (leave empty to ignore structure)
+      pdb_path (None | str, None)               path to PDB '.pdb' or '.cif' file (file can be zipped with '.gz', leave empty to ignore structure)
       chain (None | str, None)                  chain in the PDB to consider
     
     LOR/LR arguments:
@@ -82,10 +84,6 @@ class MSA:
       seqid_weights (None | float, 0.80)        seqid threshold to consider two sequences in the same cluster for weighting (set None to ignore)
       min_seqid (None | float, 0.35)            discard sequences which seqid with target sequence is below (set None to ignore)
       num_threads (int, 1)                      number of threads (CPUs) for weights evaluation (in the C++ backend)
-
-    RSA arguments:
-      rsa_solver ('biopython'/'DSSP'/'MuSiC')   used solver to compute RSA (DSSP and MuSiC require the software to be installed)
-      rsa_solver_path (None | str, None)        path to DSSP/MuSiC executable to compute RSA (leave empty if software is in system PATH)
       
     Files management arguments:
       trimmed_msa_path (None | str, None)       set to save the trimmed + non-redundent MSA file (leave empty to ignore)
@@ -110,14 +108,14 @@ class MSA:
         self.msa_filename: str = os.path.basename(self.msa_path)
         self.name: str = name
         if self.name is None:
-            for extention in self.ACCEPTED_EXTENTIONS:
+            for extention in self.ACCEPTED_MSA_EXTENTIONS:
                 if self.msa_filename.endswith(f".{extention}"):
                     self.name = self.msa_filename.removesuffix(f".{extention}")
                     break
         self.pdb_path: str = pdb_path
         self.chain: str = chain
-        self.rsa_solver: str = rsa_solver
-        self.rsa_solver_path: str = rsa_solver_path
+        self.rsa_solver = rsa_solver # deprecated, kept to not break existing codes
+        self.rsa_solver_path = rsa_solver_path # deprecated, kept to not break existing codes
         self.rsa_cache_path: str = rsa_cache_path
         self.theta_regularization: float = theta_regularization
         self.n_regularization: float = n_regularization
@@ -176,11 +174,6 @@ class MSA:
                 warning_log += f"   However chain is set to '{self.chain}'."
                 warning_log += f"   Please specify pdb_path to consider structure and RSA."
                 self.logger.warning(warning_log)
-            if self.rsa_solver_path is not None:
-                warning_log = "pdb_path is not set, so structure and RSA are ignored."
-                warning_log += f"   However rsa_solver_path is set to '{self.rsa_solver_path}'."
-                warning_log += f"   Please specify pdb_path to consider structure and RSA."
-                self.logger.warning(warning_log)
             self.structure = None
             return None
         
@@ -193,7 +186,7 @@ class MSA:
             rsa_solver=self.rsa_solver,
             rsa_solver_path=self.rsa_solver_path,
             rsa_cache_path=self.rsa_cache_path,
-            verbose=self.verbose,
+            verbose=self.logger,
         )
 
         # Non assigned RSA warnings
@@ -862,9 +855,11 @@ class MSA:
             raise ValueError(error_log)
         
         # ERROR for bad MSA extention
-        if not any([msa_path.endswith(f".{ext}") for ext in self.ACCEPTED_EXTENTIONS]):
-            error_log = f"{self.error_prefix}: msa_path='{msa_path}' should be in FASTA format (with file extention in {self.ACCEPTED_EXTENTIONS})."
-            raise ValueError(error_log)
+        if not any([msa_path.endswith(f".{ext}") for ext in self.ACCEPTED_MSA_EXTENTIONS]):
+            raise ValueError(
+                f"{self.error_prefix}: msa_path='{msa_path}' should be in FASTA format "
+                f"(with file extention in {self.ACCEPTED_MSA_EXTENTIONS})."
+            )
 
     def _verify_sequence_length(self, sequence: Sequence, target_length: int, i: int) -> None:
         """For coherence of all sequences in the MSA."""
