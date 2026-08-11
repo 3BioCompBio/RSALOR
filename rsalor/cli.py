@@ -44,7 +44,7 @@ def main():
 
     parser.add_argument(
         "pdb_path", type=str,
-        help="path to PDB '.pdb' or '.cif' file",
+        help="path to PDB '.pdb', '.ent' or '.cif' file",
     )
 
     parser.add_argument(

@@ -21,7 +21,7 @@ from rsalor.utils import Logger
 class Structure:
     """Structure object for parsing Residues from ATOM lines and assign RSA (using Shrake & Rupley).
     - rely on biopython parser
-    - accepts .pdb and .cif files
+    - accepts .pdb, .ent and .cif files
     - accepts .gz compressed files
 
     usage:
@@ -33,8 +33,8 @@ class Structure:
     
     # Base properties
     ACCEPTED_EXTENTIONS = [
-        "pdb", "cif",
-        "pdb.gz", "cif.gz",
+        "pdb", "ent", "cif",
+        "pdb.gz", "ent.gz", "cif.gz",
     ]
 
     # Knowledge based
@@ -204,10 +204,10 @@ class Structure:
         """Parse residues data from PDB file."""
 
         # Select parser
-        if self.pdb_path.endswith(".pdb") or self.pdb_path.endswith(".pdb.gz"):
-            pdb_parser = PDBParser(QUIET=True)
-        else:
+        if self.pdb_path.endswith(".cif") or self.pdb_path.endswith(".cif.gz"):
             pdb_parser = MMCIFParser(QUIET=True)
+        else:
+            pdb_parser = PDBParser(QUIET=True)
 
         # Select file handler
         if self.pdb_path.endswith(".gz"):

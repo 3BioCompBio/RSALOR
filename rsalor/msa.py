@@ -73,7 +73,7 @@ class MSA:
       msa_path (str)                            path to MSA '.fasta', '.a2m' or '.a3m' file (file can be zipped with '.gz')
 
     Structure arguments:
-      pdb_path (None | str, None)               path to PDB '.pdb' or '.cif' file (file can be zipped with '.gz', leave empty to ignore structure)
+      pdb_path (None | str, None)               path to PDB '.pdb', '.ent' or '.cif' file (file can be zipped with '.gz', leave empty to ignore structure)
       chain (None | str, None)                  chain in the PDB to consider
     
     LOR/LR arguments:
