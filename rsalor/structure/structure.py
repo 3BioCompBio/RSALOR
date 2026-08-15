@@ -21,8 +21,8 @@ from rsalor.utils import Logger
 class Structure:
     """Structure object for parsing Residues from ATOM lines and assign RSA (using Shrake & Rupley).
     - rely on biopython parser
-    - accepts .pdb, .ent and .cif files
-    - accepts .gz compressed files
+    - accepts '.pdb', '.ent' and '.cif' files
+    - accepts '.gz' compressed files
 
     usage:
     structure = Structure('./my_pdb.pdb', 'A')
@@ -91,9 +91,13 @@ class Structure:
             self.logger = Logger(verbose=bool(verbose), disable_warnings=not verbose)
 
         # Guardians
+        pdb_path = str(pdb_path)
         assert os.path.isfile(pdb_path), f"ERROR in Structure(): pdb_path='{pdb_path}' file does not exist."
-        if not any([pdb_path.endswith(f".{ext}") for ext in self.ACCEPTED_EXTENTIONS]):
-            raise ValueError(f"ERROR in Structure(): pdb_path='{pdb_path}' should end with any of {self.ACCEPTED_EXTENTIONS}.")
+        if not self.has_valid_extention(pdb_path):
+            raise ValueError(
+                f"ERROR in Structure(): "
+                f"pdb_path='{pdb_path}' should end with any of {self.ACCEPTED_EXTENTIONS}."
+            )
         if chain is not None:
             assert len(chain) == 1 and chain != " ", f"ERROR in Structure(): chain='{chain}' should be a string of length 1 and not ' '."
 
@@ -106,11 +110,7 @@ class Structure:
 
         # Init base properties
         self.pdb_path = pdb_path
-        for ext in self.ACCEPTED_EXTENTIONS:
-            if self.pdb_path.endswith(f".{ext}"):
-                self.pdb_ext = ext
-                self.pdb_name = os.path.basename(self.pdb_path).removesuffix(f".{ext}")
-                break
+        self.pdb_name = self.get_pdb_name(self.pdb_path)
         self.chain = chain
         if chain is not None:
             self.name = f"{self.pdb_name}_{self.chain}"
@@ -200,24 +200,59 @@ class Structure:
 
 
     # Dependencies --------------------------------------------------------------
-    def _parse_structure(self) -> None:
-        """Parse residues data from PDB file."""
+    @classmethod
+    def has_valid_extention(cls, pdb_path: str) -> bool:
+        """Return True if 'pdb_path' has a file extention amoung Structure.ACCEPTED_EXTENTIONS."""
+        return any([str(pdb_path).endswith(f".{ext}") for ext in cls.ACCEPTED_EXTENTIONS])
+
+    @classmethod
+    def get_pdb_name(clf, pdb_path: str) -> str:
+        """Get 'pdb_name' from 'pdb_path' by removing file extention and directory prefix."""
+        pdb_name = os.path.basename(str(pdb_path))
+        for ext in clf.ACCEPTED_EXTENTIONS:
+            if pdb_name.endswith(f".{ext}"):
+                pdb_name = pdb_name.removesuffix(f".{ext}")
+                break
+        return pdb_name
+
+    @classmethod
+    def read_biopython_structure(cls, pdb_path: str) -> BPStructure:
+        """Return a BioPython Structure object from 'pdb_path' path to a 3D structure file.
+            - handle '.pdb', '.ent' and '.cif' formats
+            - handle '.gz' compressed files
+        """
+
+        # Guardians
+        pdb_path = str(pdb_path)
+        if not cls.has_valid_extention(pdb_path):
+            raise ValueError(
+                f"ERROR in Structure.read_biopython_structure(): "
+                f"pdb_path='{pdb_path}' should end with any of {cls.ACCEPTED_EXTENTIONS}."
+            )
 
         # Select parser
-        if self.pdb_path.endswith(".cif") or self.pdb_path.endswith(".cif.gz"):
+        if pdb_path.endswith(".cif") or pdb_path.endswith(".cif.gz"):
             pdb_parser = MMCIFParser(QUIET=True)
         else:
             pdb_parser = PDBParser(QUIET=True)
 
         # Select file handler
-        if self.pdb_path.endswith(".gz"):
+        if pdb_path.endswith(".gz"):
             custom_open = gzip.open
         else:
             custom_open = open
 
         # Parse structure with biopython
-        with custom_open(self.pdb_path, mode="rt", encoding="ISO-8859-1") as fs:
-            bp_structure: BPStructure = pdb_parser.get_structure(self.pdb_name, fs)
+        pdb_name = cls.get_pdb_name(pdb_path)
+        with custom_open(pdb_path, mode="rt", encoding="ISO-8859-1") as fs:
+            bp_structure: BPStructure = pdb_parser.get_structure(pdb_name, fs)
+        return bp_structure
+
+    def _parse_structure(self) -> None:
+        """Parse residues data from PDB file."""
+
+        # Parse structure with biopython
+        bp_structure: BPStructure = self.read_biopython_structure(self.pdb_path)
         bp_model_0: BPModel = bp_structure[0] # consider only model 0
 
         # Compute ASA

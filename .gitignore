@@ -3,6 +3,8 @@ __pycache__/
 build/
 rsalor.egg-info/
 dist/
+.github/
+.vscode/
 
 # Ignore experiments
 src/
