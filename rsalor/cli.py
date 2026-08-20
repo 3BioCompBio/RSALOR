@@ -53,6 +53,12 @@ def main():
     )
 
     parser.add_argument(
+        "-H", "--disable_ignore_hydrogen_atoms", dest="ignore_hydrogen_atoms", action="store_false",
+        help="include hydrogen atoms when computing RSA (default: ignored)",
+    )
+    parser.set_defaults(ignore_hydrogen_atoms=True)
+
+    parser.add_argument(
         "-o", "--output_path", type=str, default=None, metavar="<str>",
         help="path to output '.csv' file (default='./[msa_filename]_rsalor.csv')",
     )
@@ -152,6 +158,7 @@ def main():
         args.msa_path,
         args.pdb_path,
         args.chain,
+        ignore_hydrogen_atoms=args.ignore_hydrogen_atoms,
         theta_regularization=args.theta_regularization,
         n_regularization=args.n_regularization,
         count_target_sequence=not args.ignore_target_sequence,

@@ -64,12 +64,16 @@ class Structure:
     }
     MAX_SURFACE_DEFAULT = 2.01 # mean value
 
+    # Atoms values
+    HYDROGEN_ATOMS_PREFIXES = ["H", "1H", "2H", "3H"]
+
 
     # Constructor --------------------------------------------------------------
     def __init__(
             self,
             pdb_path: str,
             chain: Union[str, None],
+            ignore_hydrogen_atoms: bool=True,
             rsa_solver=None, # deprecated, kept to not break existing codes
             rsa_solver_path=None, # deprecated, kept to not break existing codes
             rsa_cache_path: Union[None, str]=None,
@@ -80,6 +84,7 @@ class Structure:
         Arguments:
             pdb_path (str):                                   path to PDB file
             chain (str | None):                               target chain in the PDB (or None to ignore)
+            ignore_hydrogen_atoms (bool=Tue):                 ignore hydrogen atoms to compute RSA
             rsa_cache_path (None | str=None):                 path to write/read to/from RSA values
             verbose (bool=False):                             set True for logs or provide Logger instance
         """
@@ -116,6 +121,7 @@ class Structure:
             self.name = f"{self.pdb_name}_{self.chain}"
         else:
             self.name = self.pdb_name
+        self.ignore_hydrogen_atoms = bool(ignore_hydrogen_atoms)
         self.rsa_solver = None # deprecated, kept to not break existing codes
         self.rsa_solver_path = None # deprecated, kept to not break existing codes
         self.rsa_cache_path = rsa_cache_path
@@ -157,7 +163,7 @@ class Structure:
 
 
     # RSA cache -----------------------------------------------------------------
-    def read_rsa_map(self, file_path: str) -> Dict[str, Union[float, None]]:
+    def read_rsa_map(self, file_path: str) -> Dict[str, float]:
         """Read rsa_map cache file and return RSA mapping: {resid: str => RSA: float}."""
 
         # Guardians
@@ -166,7 +172,7 @@ class Structure:
 
         # Parse and return
         COMMENT_CHAR = "#"
-        rsa_map: Dict[str, Union[float, None]] = {}
+        rsa_map: Dict[str, float] = {}
         with open(file_path, "r") as fs:
             lines = [line.split() for line in fs.readlines() if len(line) >= 3 and line[0] != COMMENT_CHAR]
         for line in lines:
@@ -178,9 +184,11 @@ class Structure:
         assert len(rsa_map) > 0, f"ERROR in {self}.read(): No RSA data found in file_path='{file_path}'."
         return rsa_map
 
-    def get_rsa_map(self) -> Dict[str, Union[float, None]]:
-        """Get RSA mapping: {resid: str => RSA: float}."""
-        return {res.resid: res.rsa for res in self.residues}
+    def get_rsa_map(self) -> Dict[str, float]:
+        """Get RSA mapping: {resid: str => RSA: float}.
+        - skips residues without assigned RSA value
+        """
+        return {res.resid: res.rsa for res in self.residues if res.rsa is not None}
         
     def write_rsa_map(self, file_path: str) -> None:
         """Write rsa_map to a cache file."""
@@ -255,6 +263,20 @@ class Structure:
         bp_structure: BPStructure = self.read_biopython_structure(self.pdb_path)
         bp_model_0: BPModel = bp_structure[0] # consider only model 0
 
+        # Remove hydrogen atoms for consistency between 3D structures with and without them
+        # -> for example, X-ray 3D structures have no hydrogen atoms but some AlphaFold models do
+        # -> do it before evaluating SASA with biopython ShrakeRupley
+        if self.ignore_hydrogen_atoms:
+            for bp_chain in bp_model_0:
+                for bp_residue in bp_chain:
+                    atoms_to_remove = []
+                    for bp_atom in bp_residue:
+                        atom_id = bp_atom.id
+                        if any([atom_id.startswith(hp) for hp in self.HYDROGEN_ATOMS_PREFIXES]):
+                            atoms_to_remove.append(atom_id)
+                    for atom_id in atoms_to_remove:
+                        bp_residue.detach_child(atom_id)
+
         # Compute ASA
         rsa_map = None
         if self.rsa_cache_path is not None and os.path.isfile(self.rsa_cache_path):
@@ -308,7 +330,7 @@ class Structure:
     def _parse_bp_residue(
             self,
             bp_residue: BPResidue,
-            rsa_map: Union[None, Dict[str, Union[float, None]]]=None
+            rsa_map: Union[None, Dict[str, float]]=None
         ) -> Residue:
         """Parse a Residue object from a BioPython Residue.
         - parses RSA values from rsa_map if it is provided

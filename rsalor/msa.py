@@ -42,6 +42,7 @@ class MSA:
             msa_path: str,
             pdb_path: Union[None, str]=None,
             chain: Union[None, str]=None,
+            ignore_hydrogen_atoms: bool=True,
             theta_regularization: float=0.01,
             n_regularization: float=0.0,
             count_target_sequence: bool=True,
@@ -75,6 +76,7 @@ class MSA:
     Structure arguments:
       pdb_path (None | str, None)               path to PDB '.pdb', '.ent' or '.cif' file (file can be zipped with '.gz', leave empty to ignore structure)
       chain (None | str, None)                  chain in the PDB to consider
+      ignore_hydrogen_atoms (bool, True)        ignore hydrogen atoms to compute RSA (advised for consistency between structure with and without them)
     
     LOR/LR arguments:
       theta_regularization (float, 0.01)        regularization term for LOR/LR at amino acid frequencies level
@@ -114,6 +116,7 @@ class MSA:
                     break
         self.pdb_path: str = pdb_path
         self.chain: str = chain
+        self.ignore_hydrogen_atoms = bool(ignore_hydrogen_atoms)
         self.rsa_solver = rsa_solver # deprecated, kept to not break existing codes
         self.rsa_solver_path = rsa_solver_path # deprecated, kept to not break existing codes
         self.rsa_cache_path: str = rsa_cache_path
@@ -183,6 +186,7 @@ class MSA:
         self.structure = Structure(
             self.pdb_path,
             self.chain,
+            ignore_hydrogen_atoms=self.ignore_hydrogen_atoms,
             rsa_solver=self.rsa_solver,
             rsa_solver_path=self.rsa_solver_path,
             rsa_cache_path=self.rsa_cache_path,
